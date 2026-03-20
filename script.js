@@ -27,15 +27,15 @@ const portfolioAssets = [
 
 // Jaguar, Rocks_Foliage, Concrete_Block, Large_Tree, Radio, Orb, Screen_Tablet, Nether_Portal, Money_Tree
 const sceneLayout = [
-  { top: 290, left: 547, width: 132 },
-  { top: 389, left: 626, width: 80 },
-  { top: 256, left: 643, width: 109 },
-  { top: 126, left: 638, width: 230 },
-  { top: 434, left: 96, width: 170 },
-  { top: 367, left: 252, width: 63 },
-  { top: 500, left: 350, width: 180 },
-  { top: 233, left: 240, width: 138 },
-  { top: 344, left: 359, width: 150 }
+  { top: 290, left: 537, width: 132 },
+  { top: 389, left: 616, width: 80 },
+  { top: 256, left: 633, width: 109 },
+  { top: 126, left: 628, width: 230 },
+  { top: 434, left: 86, width: 170 },
+  { top: 367, left: 242, width: 63 },
+  { top: 580, left: 370, width: 180 },
+  { top: 233, left: 230, width: 138 },
+  { top: 344, left: 349, width: 150 }
 ];
 
 const layerByAsset = { Concrete_Block: 3, Large_Tree: 3, Jaguar: 5 };
@@ -313,7 +313,7 @@ function addRadioMusicNotes(anchor) {
 portfolioAssets.forEach((asset, index) => {
   const anchor = document.createElement("a");
   anchor.className = "asset-link";
-  anchor.href = `/${asset.link}`;
+  anchor.href = `https://failennaselta.com/${asset.link}`;
   anchor.setAttribute("aria-label", `${asset.name} — ${asset.hoverLabel ?? asset.link}`);
   anchor.style.zIndex = String(layerByAsset[asset.name] ?? 4);
   const animationClass = animationClassByAsset[asset.name];
@@ -398,7 +398,7 @@ if (background.complete && background.naturalWidth > 0) {
 
 function refreshSceneScale() {
   const scale = Math.min(window.innerWidth / DESIGN_WIDTH, window.innerHeight / DESIGN_HEIGHT);
-  scene.style.transform = `translate(-50%, ${SCENE_Y_SHIFT_PERCENT}%) scale(${scale})`;
+  scene.style.transform = `translate(calc(-50% - 60px), calc(${SCENE_Y_SHIFT_PERCENT}% - 50px)) scale(${scale})`;
 }
 
 window.addEventListener("resize", refreshSceneScale);
