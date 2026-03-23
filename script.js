@@ -363,7 +363,7 @@ birdCatchPanel.setAttribute("aria-live", "polite");
 birdCatchPanel.setAttribute("aria-label", "Catch the bird — total catches ever");
 const birdCatchLine = document.createElement("p");
 birdCatchLine.className = "bird-catcher__line";
-birdCatchLine.appendChild(document.createTextNode("catch the bird : "));
+birdCatchLine.appendChild(document.createTextNode("how many people caught the tucan?: "));
 const birdCatchCountEl = document.createElement("span");
 birdCatchCountEl.id = "bird-catch-count";
 birdCatchCountEl.textContent = String(getBirdCatchesEver());
