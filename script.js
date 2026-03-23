@@ -2,6 +2,8 @@ const ASSET_PATH = "./assets/";
 const DESIGN_WIDTH = 1024;
 const DESIGN_HEIGHT = 580;
 const SCENE_Y_SHIFT_PERCENT = -54;
+/** Extra leftward shift (px) so the map isn’t clipped on the right */
+const SCENE_SHIFT_LEFT_EXTRA_PX = 20;
 
 const portfolioAssets = [
   { name: "Jaguar", filename: "panther reflection.png", link: "about", hoverLabel: "About" },
@@ -28,12 +30,12 @@ const portfolioAssets = [
 // Jaguar, Rocks_Foliage, Concrete_Block, Large_Tree, Radio, Orb, Screen_Tablet, Nether_Portal, Money_Tree
 const sceneLayout = [
   { top: 290, left: 537, width: 132 },
-  { top: 389, left: 616, width: 80 },
-  { top: 256, left: 633, width: 109 },
-  { top: 126, left: 628, width: 230 },
-  { top: 434, left: 86, width: 170 },
+  { top: 389, left: 666, width: 80 },
+  { top: 256, left: 653, width: 109 },
+  { top: 126, left: 648, width: 230 },
+  { top: 434, left: 56, width: 170 },
   { top: 367, left: 242, width: 63 },
-  { top: 580, left: 370, width: 180 },
+  { top: 588, left: 370, width: 180 },
   { top: 233, left: 230, width: 138 },
   { top: 344, left: 349, width: 150 }
 ];
@@ -70,12 +72,210 @@ const LEAF_COUNT_PER_ZONE = [4, 5, 4];
 const SCREEN_TABLET_OVERLAY_FILENAME = "green layer.png";
 const NETHER_PORTAL_OVERLAY_FILENAME = "purple portal.png";
 
+const BIRD_FLIGHT_FRAMES = [
+  "bird in flight 1.png",
+  "bird in flight 2.png",
+  "bird in flight 3.png"
+];
+
+const BIRD_CATCH_STORAGE_KEY = "birdCatchesEver";
+/** Slower = longer linear move (seconds); end timer should run just after motion finishes */
+const BIRD_FLIGHT_DURATION_SEC = 8;
+const BIRD_FLIGHT_END_MS = Math.round(BIRD_FLIGHT_DURATION_SEC * 1000) + 180;
+
+function getBirdCatchesEver() {
+  try {
+    const v = localStorage.getItem(BIRD_CATCH_STORAGE_KEY);
+    const n = parseInt(v ?? "0", 10);
+    return Number.isFinite(n) && n >= 0 ? n : 0;
+  } catch {
+    return 0;
+  }
+}
+
+function incrementBirdCatchesEver() {
+  const next = getBirdCatchesEver() + 1;
+  try {
+    localStorage.setItem(BIRD_CATCH_STORAGE_KEY, String(next));
+  } catch {
+    /* ignore quota / private mode */
+  }
+  return next;
+}
+
+function birdAssetUrl(filename) {
+  return `${ASSET_PATH}${encodeURI(filename)}`;
+}
+
+BIRD_FLIGHT_FRAMES.forEach((name) => {
+  const pre = new Image();
+  pre.src = birdAssetUrl(name);
+});
+
 const viewport = document.getElementById("spatial-viewport");
 const scene = document.createElement("div");
 scene.id = "spatial-scene";
 scene.style.width = `${DESIGN_WIDTH}px`;
 scene.style.height = `${DESIGN_HEIGHT}px`;
 viewport.appendChild(scene);
+
+const BRANDING_TREE_SCENE_INDEX = portfolioAssets.findIndex((a) => a.name === "Large_Tree");
+
+function getBrandingTreeScreenRect() {
+  const tree = document.getElementById("branding-tree-anchor");
+  if (!tree) return null;
+  const r = tree.getBoundingClientRect();
+  if (r.width >= 4 && r.height >= 4) return r;
+  const layout = sceneLayout[BRANDING_TREE_SCENE_INDEX];
+  if (!layout) return null;
+  const sr = scene.getBoundingClientRect();
+  const s = sr.width / DESIGN_WIDTH;
+  return {
+    left: sr.left + layout.left * s,
+    top: sr.top + layout.top * s,
+    width: layout.width * s,
+    height: Math.max(48, layout.width * s * 1.05)
+  };
+}
+
+const hoverBirdRoot = document.createElement("div");
+hoverBirdRoot.className = "hover-bird";
+hoverBirdRoot.setAttribute("aria-hidden", "true");
+const hoverBirdImg = document.createElement("img");
+hoverBirdImg.alt = "";
+hoverBirdImg.decoding = "async";
+hoverBirdImg.draggable = false;
+hoverBirdImg.src = birdAssetUrl(BIRD_FLIGHT_FRAMES[0]);
+hoverBirdRoot.appendChild(hoverBirdImg);
+const birdSpeechBubble = document.createElement("div");
+birdSpeechBubble.className = "bird-catch-bubble";
+birdSpeechBubble.textContent = "I hope you have an amazing day";
+birdSpeechBubble.setAttribute("aria-hidden", "true");
+hoverBirdRoot.appendChild(birdSpeechBubble);
+document.body.appendChild(hoverBirdRoot);
+hoverBirdRoot.style.left = "-9999px";
+hoverBirdRoot.style.top = "-9999px";
+
+let birdFlightActive = false;
+let birdFrameIntervalId = null;
+let birdFlightEndTimer = null;
+let birdCooldownUntil = 0;
+let birdCatchConsumedThisFlight = false;
+/** Only one bird flight per full page load (until refresh) */
+let birdFlightAllowedOncePerLoad = true;
+
+function hideBirdSpeechBubble() {
+  birdSpeechBubble.classList.remove("is-visible");
+  birdSpeechBubble.setAttribute("aria-hidden", "true");
+}
+
+function catchBird(event) {
+  if (event) {
+    event.preventDefault();
+    event.stopPropagation();
+  }
+  if (!birdFlightActive || birdCatchConsumedThisFlight) return;
+
+  birdCatchConsumedThisFlight = true;
+  if (birdFrameIntervalId !== null) {
+    window.clearInterval(birdFrameIntervalId);
+    birdFrameIntervalId = null;
+  }
+  if (birdFlightEndTimer !== null) {
+    window.clearTimeout(birdFlightEndTimer);
+    birdFlightEndTimer = null;
+  }
+
+  const r = hoverBirdRoot.getBoundingClientRect();
+  hoverBirdRoot.style.transition = "none";
+  hoverBirdRoot.style.left = `${r.left}px`;
+  hoverBirdRoot.style.top = `${r.top}px`;
+  hoverBirdRoot.classList.remove("is-catchable");
+
+  const total = incrementBirdCatchesEver();
+  const countEl = document.getElementById("bird-catch-count");
+  if (countEl) countEl.textContent = String(total);
+
+  birdSpeechBubble.classList.add("is-visible");
+  birdSpeechBubble.setAttribute("aria-hidden", "false");
+
+  birdFlightActive = false;
+  birdCooldownUntil = Date.now() + 2200;
+}
+
+/* pointerdown: catch on press — click often misses because the bird moves before mouseup */
+hoverBirdRoot.addEventListener("pointerdown", catchBird);
+hoverBirdRoot.addEventListener("click", catchBird);
+
+function startBirdFlightFromBrandingTree() {
+  if (birdFlightActive) return;
+  if (Date.now() < birdCooldownUntil) return;
+  if (!birdFlightAllowedOncePerLoad) return;
+
+  const tr = getBrandingTreeScreenRect();
+  if (!tr || tr.width < 2) return;
+
+  birdFlightAllowedOncePerLoad = false;
+  hideBirdSpeechBubble();
+  birdCatchConsumedThisFlight = false;
+  birdFlightActive = true;
+  const startX = tr.left + tr.width * 0.78;
+  const startY = tr.top + tr.height * 0.2;
+  /* Fly left off-screen (opposite of the old rightward path) */
+  const endX = -220;
+  const endY = Math.max(-100, tr.top - 140);
+
+  if (birdFrameIntervalId !== null) {
+    window.clearInterval(birdFrameIntervalId);
+    birdFrameIntervalId = null;
+  }
+  if (birdFlightEndTimer !== null) {
+    window.clearTimeout(birdFlightEndTimer);
+    birdFlightEndTimer = null;
+  }
+
+  hoverBirdRoot.style.transition = "none";
+  hoverBirdRoot.style.left = `${startX}px`;
+  hoverBirdRoot.style.top = `${startY}px`;
+  hoverBirdImg.src = birdAssetUrl(BIRD_FLIGHT_FRAMES[0]);
+  void hoverBirdRoot.offsetWidth;
+  hoverBirdRoot.style.opacity = "1";
+  hoverBirdRoot.classList.add("is-catchable");
+  hoverBirdRoot.style.transition =
+    `left ${BIRD_FLIGHT_DURATION_SEC}s linear, top ${BIRD_FLIGHT_DURATION_SEC}s linear, opacity 0.2s ease`;
+
+  requestAnimationFrame(() => {
+    requestAnimationFrame(() => {
+      hoverBirdRoot.style.left = `${endX}px`;
+      hoverBirdRoot.style.top = `${endY}px`;
+    });
+  });
+
+  let fi = 0;
+  birdFrameIntervalId = window.setInterval(() => {
+    fi = (fi + 1) % BIRD_FLIGHT_FRAMES.length;
+    hoverBirdImg.src = birdAssetUrl(BIRD_FLIGHT_FRAMES[fi]);
+  }, 250);
+
+  birdFlightEndTimer = window.setTimeout(() => {
+    if (birdCatchConsumedThisFlight) return;
+    if (birdFrameIntervalId !== null) {
+      window.clearInterval(birdFrameIntervalId);
+      birdFrameIntervalId = null;
+    }
+    hoverBirdRoot.classList.remove("is-catchable");
+    hideBirdSpeechBubble();
+    hoverBirdRoot.style.opacity = "0";
+    hoverBirdRoot.style.transition = "opacity 0.35s ease";
+    birdCooldownUntil = Date.now() + 2200;
+    window.setTimeout(() => {
+      hoverBirdRoot.style.transition = "none";
+      hoverBirdRoot.style.left = "-9999px";
+      hoverBirdRoot.style.top = "-9999px";
+      birdFlightActive = false;
+    }, 380);
+  }, BIRD_FLIGHT_END_MS);
+}
 
 const tooltip = document.createElement("div");
 tooltip.className = "asset-tooltip";
@@ -131,6 +331,46 @@ background.src = `${ASSET_PATH}background2.png`;
 background.alt = "";
 scene.appendChild(background);
 
+background.addEventListener("load", refreshBackgroundPickBuffer);
+if (background.complete && background.naturalWidth > 0) {
+  refreshBackgroundPickBuffer();
+}
+
+const NETHER_SCENE_INDEX = portfolioAssets.findIndex((a) => a.name === "Nether_Portal");
+const netherSlot = sceneLayout[NETHER_SCENE_INDEX];
+const DONATE_GAP_LEFT_OF_PORTAL = 20;
+const DONATE_GAP_ABOVE_PORTAL_TOP = 80;
+
+const donateBtn = document.createElement("a");
+donateBtn.id = "donate-btn";
+donateBtn.className = "donate-btn";
+donateBtn.href = "https://www.junglekeepers.org/cameras/remote-lake";
+donateBtn.target = "_blank";
+donateBtn.rel = "noopener noreferrer";
+donateBtn.textContent = "DONATE";
+{
+  const rightEdgeX = netherSlot.left - DONATE_GAP_LEFT_OF_PORTAL;
+  const buttonBottomY = netherSlot.top - DONATE_GAP_ABOVE_PORTAL_TOP;
+  donateBtn.style.left = `${rightEdgeX}px`;
+  donateBtn.style.bottom = `${DESIGN_HEIGHT - buttonBottomY}px`;
+}
+scene.appendChild(donateBtn);
+
+const birdCatchPanel = document.createElement("div");
+birdCatchPanel.id = "bird-catcher";
+birdCatchPanel.className = "bird-catcher";
+birdCatchPanel.setAttribute("aria-live", "polite");
+birdCatchPanel.setAttribute("aria-label", "Catch the bird — total catches ever");
+const birdCatchLine = document.createElement("p");
+birdCatchLine.className = "bird-catcher__line";
+birdCatchLine.appendChild(document.createTextNode("catch the bird : "));
+const birdCatchCountEl = document.createElement("span");
+birdCatchCountEl.id = "bird-catch-count";
+birdCatchCountEl.textContent = String(getBirdCatchesEver());
+birdCatchLine.appendChild(birdCatchCountEl);
+birdCatchPanel.appendChild(birdCatchLine);
+scene.appendChild(birdCatchPanel);
+
 const dustLayer = document.createElement("div");
 dustLayer.className = "ambient-dust";
 for (let i = 0; i < DUST_PARTICLE_COUNT; i += 1) {
@@ -170,6 +410,63 @@ function drawImageCover(context, image, canvasWidth, canvasHeight) {
     offsetY = (canvasHeight - drawHeight) / 2;
   }
   context.drawImage(image, offsetX, offsetY, drawWidth, drawHeight);
+}
+
+/** 1024×580 cover raster — used to skip “paper” for the bird (looser than leaf mask) */
+let backgroundPickImageData = null;
+
+function refreshBackgroundPickBuffer() {
+  if (typeof background === "undefined" || !background.naturalWidth) return;
+  const canvas = document.createElement("canvas");
+  canvas.width = DESIGN_WIDTH;
+  canvas.height = DESIGN_HEIGHT;
+  const ctx = canvas.getContext("2d", { willReadFrequently: true });
+  if (!ctx) return;
+  try {
+    drawImageCover(ctx, background, DESIGN_WIDTH, DESIGN_HEIGHT);
+    backgroundPickImageData = ctx.getImageData(0, 0, DESIGN_WIDTH, DESIGN_HEIGHT);
+  } catch {
+    /* file://, CORS, or security — can’t read pixels; bird still works (see isPointerOverCollageArt) */
+    backgroundPickImageData = null;
+  }
+}
+
+function pixelIsMostlyWhitePaper(ix, iy, d) {
+  if (ix < 0 || iy < 0 || ix >= DESIGN_WIDTH || iy >= DESIGN_HEIGHT) return true;
+  const j = (iy * DESIGN_WIDTH + ix) * 4;
+  const r = d[j];
+  const g = d[j + 1];
+  const b = d[j + 2];
+  const lum = (r + g + b) / 3;
+  const chroma = Math.max(r, g, b) - Math.min(r, g, b);
+  /* Looser than leaves: only treat near-flat white as “paper” */
+  return lum >= 249 && chroma <= 28;
+}
+
+function isPointerOverCollageArt(clientX, clientY) {
+  if (!backgroundPickImageData) {
+    /* No buffer → don’t block the bird (canvas taint / failed read) */
+    return true;
+  }
+  const d = backgroundPickImageData.data;
+  const sr = scene.getBoundingClientRect();
+  const w = sr.width;
+  const h = sr.height;
+  if (w < 1 || h < 1) return true;
+  const x = (clientX - sr.left) * (DESIGN_WIDTH / w);
+  const y = (clientY - sr.top) * (DESIGN_HEIGHT / h);
+  const ix0 = Math.floor(x);
+  const iy0 = Math.floor(y);
+
+  /* 5×5: any pixel “not paper” → collage (forgiving vs 1px misalignment / antialiasing) */
+  for (let dy = -2; dy <= 2; dy += 1) {
+    for (let dx = -2; dx <= 2; dx += 1) {
+      if (!pixelIsMostlyWhitePaper(ix0 + dx, iy0 + dy, d)) {
+        return true;
+      }
+    }
+  }
+  return false;
 }
 
 function createLeafBackgroundMaskDataUrl(image) {
@@ -266,6 +563,7 @@ function mountLeavesLayer() {
   applyLeavesRootMask(maskUrl);
   buildAmbientLeaves();
   scene.appendChild(leavesRoot);
+  refreshBackgroundPickBuffer();
 }
 
 function applyCoordinates(node, coords) {
@@ -315,11 +613,15 @@ portfolioAssets.forEach((asset, index) => {
   anchor.className = "asset-link";
   anchor.href = `https://failennaselta.com/${asset.link}`;
   anchor.setAttribute("aria-label", `${asset.name} — ${asset.hoverLabel ?? asset.link}`);
-  anchor.style.zIndex = String(layerByAsset[asset.name] ?? 4);
+  anchor.style.zIndex =
+    asset.name === "Orb"
+      ? "35"
+      : String(layerByAsset[asset.name] ?? 4);
   const animationClass = animationClassByAsset[asset.name];
   if (animationClass && !topOnlySwayAssets.has(asset.name)) anchor.classList.add(animationClass);
   anchor.style.animationDelay = `-${(Math.random() * 5).toFixed(2)}s`;
   applyCoordinates(anchor, sceneLayout[index]);
+  if (asset.name === "Large_Tree") anchor.id = "branding-tree-anchor";
 
   if (topOnlySwayAssets.has(asset.name)) {
     anchor.classList.add("has-top-only-sway");
@@ -347,6 +649,7 @@ portfolioAssets.forEach((asset, index) => {
     anchor.appendChild(image);
 
     if (asset.name === "Nether_Portal") {
+      anchor.id = "nether-portal-anchor";
       anchor.style.opacity = "0.9";
       attachStaticPulseOverlay(anchor, NETHER_PORTAL_OVERLAY_FILENAME, -64, 12, .26);
     } else if (asset.name === "Screen_Tablet") {
@@ -379,6 +682,34 @@ portfolioAssets.forEach((asset, index) => {
   scene.appendChild(anchor);
 });
 
+function bindBirdBackgroundTrigger() {
+  let lastBirdHoverAt = 0;
+  const throttleMs = 850;
+
+  function tryStartFromPointer(e) {
+    if (e.pointerType === "touch") return;
+    const el = document.elementFromPoint(e.clientX, e.clientY);
+    if (!el) return;
+    if (el.closest(".asset-link")) return;
+    if (el.closest(".donate-btn")) return;
+    if (el !== background) return;
+    if (!isPointerOverCollageArt(e.clientX, e.clientY)) return;
+    if (Date.now() - lastBirdHoverAt < throttleMs) return;
+    lastBirdHoverAt = Date.now();
+    startBirdFlightFromBrandingTree();
+  }
+
+  viewport.addEventListener("pointermove", tryStartFromPointer, { passive: true });
+  background.addEventListener("mouseenter", (e) => {
+    if (Date.now() - lastBirdHoverAt < throttleMs) return;
+    if (!isPointerOverCollageArt(e.clientX, e.clientY)) return;
+    lastBirdHoverAt = Date.now();
+    startBirdFlightFromBrandingTree();
+  });
+}
+
+bindBirdBackgroundTrigger();
+
 if (background.complete && background.naturalWidth > 0) {
   mountLeavesLayer();
 } else {
@@ -396,10 +727,65 @@ if (background.complete && background.naturalWidth > 0) {
   );
 }
 
+let lastViewportKey = "";
+
 function refreshSceneScale() {
-  const scale = Math.min(window.innerWidth / DESIGN_WIDTH, window.innerHeight / DESIGN_HEIGHT);
-  scene.style.transform = `translate(calc(-50% - 60px), calc(${SCENE_Y_SHIFT_PERCENT}% - 50px)) scale(${scale})`;
+  // clientWidth/Height avoids scrollbar vs innerWidth mismatch that can cause edge seams
+  const iw = document.documentElement.clientWidth;
+  const ih = document.documentElement.clientHeight;
+  const viewportKey = `${iw}x${ih}`;
+  if (viewportKey !== lastViewportKey) {
+    lastViewportKey = viewportKey;
+    if (birdFlightActive) {
+      hideBirdSpeechBubble();
+      hoverBirdRoot.classList.remove("is-catchable");
+      hoverBirdRoot.style.opacity = "0";
+      if (birdFrameIntervalId !== null) {
+        window.clearInterval(birdFrameIntervalId);
+        birdFrameIntervalId = null;
+      }
+      if (birdFlightEndTimer !== null) {
+        window.clearTimeout(birdFlightEndTimer);
+        birdFlightEndTimer = null;
+      }
+      birdFlightActive = false;
+      hoverBirdRoot.style.transition = "none";
+      hoverBirdRoot.style.left = "-9999px";
+      hoverBirdRoot.style.top = "-9999px";
+    }
+  }
+
+  const rawScale = Math.min(iw / DESIGN_WIDTH, ih / DESIGN_HEIGHT);
+  const scale = Math.round(rawScale * 1e6) / 1e6;
+
+  // Minimal inset — maximize visible map; viewport inset shadow handles hairlines
+  const edgeInset = 0.35 / Math.max(iw, ih);
+  const finalScale = scale * (1 - edgeInset);
+
+  const scaledW = DESIGN_WIDTH * finalScale;
+  const scaledH = DESIGN_HEIGHT * finalScale;
+
+  const marginX = Math.max(0, (iw - scaledW) / 2 - 2);
+  const marginY = Math.max(0, (ih - scaledH) / 2 - 2);
+  const horizontalNudge = Math.min(70, marginX);
+  const verticalNudge = Math.min(50, marginY);
+
+  let txPx = -DESIGN_WIDTH / 2 - horizontalNudge - SCENE_SHIFT_LEFT_EXTRA_PX;
+  let tyPx = (SCENE_Y_SHIFT_PERCENT / 100) * DESIGN_HEIGHT - verticalNudge;
+  const dpr = window.devicePixelRatio || 1;
+  // Extra nudge downward at sizes where a black hairline appears along the top edge
+  const needsTopSeamFix =
+    (iw <= 940 && ih <= 894) || (iw > 1680 && ih <= 910);
+  if (needsTopSeamFix) {
+    tyPx += 3 / dpr;
+  }
+  const snap = (v) => Math.round(v * dpr) / dpr;
+  txPx = snap(txPx);
+  tyPx = snap(tyPx);
+
+  scene.style.transform = `translate3d(${txPx}px, ${tyPx}px, 0) scale(${finalScale})`;
 }
 
 window.addEventListener("resize", refreshSceneScale);
 refreshSceneScale();
+
