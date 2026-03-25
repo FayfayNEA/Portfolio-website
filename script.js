@@ -107,6 +107,10 @@ function birdAssetUrl(filename) {
   return `${ASSET_PATH}${encodeURI(filename)}`;
 }
 
+function assetUrl(filename) {
+  return `${ASSET_PATH}${encodeURI(filename)}`;
+}
+
 BIRD_FLIGHT_FRAMES.forEach((name) => {
   const pre = new Image();
   pre.src = birdAssetUrl(name);
@@ -327,7 +331,7 @@ function startTooltipTypewriter(text, pos) {
 
 const background = document.createElement("img");
 background.className = "spatial-bg";
-background.src = `${ASSET_PATH}background2.png`;
+background.src = assetUrl("background2.png");
 background.alt = "";
 scene.appendChild(background);
 
@@ -545,7 +549,7 @@ function buildAmbientLeaves() {
       const leafFile = LEAF_FILENAMES[globalLeafIndex % LEAF_FILENAMES.length] ?? LEAF_FILENAMES[0];
       globalLeafIndex += 1;
       leafImg.className = "leaf-floater__img";
-      leafImg.src = `${ASSET_PATH}${leafFile}`;
+      leafImg.src = assetUrl(leafFile);
       leafImg.alt = "";
       leafImg.setAttribute("aria-hidden", "true");
       if (Math.random() < 0.5) leafImg.style.transform = "scaleX(-1)";
@@ -583,7 +587,7 @@ function attachStaticPulseOverlay(anchor, overlayFilename, topOffsetPx = 0, left
     pulseOverlay.style.transform = `scale(${scale})`;
     pulseOverlay.style.transformOrigin = "center";
   }
-  pulseOverlay.src = `${ASSET_PATH}${overlayFilename}`;
+  pulseOverlay.src = assetUrl(overlayFilename);
   anchor.appendChild(pulseOverlay);
 }
 
@@ -627,11 +631,11 @@ portfolioAssets.forEach((asset, index) => {
     anchor.style.setProperty("--sway-split", swaySplitByAsset[asset.name] ?? "58%");
     const baseImage = document.createElement("img");
     baseImage.className = "asset-image asset-image-base";
-    baseImage.src = `${ASSET_PATH}${asset.filename}`;
+    baseImage.src = assetUrl(asset.filename);
     baseImage.alt = asset.name.replaceAll("_", " ");
     const topImage = document.createElement("img");
     topImage.className = "asset-image asset-image-top anim-sway";
-    topImage.src = `${ASSET_PATH}${asset.filename}`;
+    topImage.src = assetUrl(asset.filename);
     topImage.alt = "";
     topImage.setAttribute("aria-hidden", "true");
     topImage.style.animationDelay = `-${(Math.random() * 5).toFixed(2)}s`;
@@ -640,7 +644,7 @@ portfolioAssets.forEach((asset, index) => {
   } else {
     const image = document.createElement("img");
     image.className = "asset-image";
-    image.src = `${ASSET_PATH}${asset.filename}`;
+    image.src = assetUrl(asset.filename);
     image.alt = asset.name.replaceAll("_", " ");
     anchor.appendChild(image);
 
