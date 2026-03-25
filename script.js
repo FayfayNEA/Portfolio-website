@@ -548,7 +548,6 @@ function buildAmbientLeaves() {
       leafImg.src = `${ASSET_PATH}${leafFile}`;
       leafImg.alt = "";
       leafImg.setAttribute("aria-hidden", "true");
-      leafImg.loading = "lazy";
       if (Math.random() < 0.5) leafImg.style.transform = "scaleX(-1)";
       wrapper.appendChild(leafImg);
       zoneEl.appendChild(wrapper);
@@ -630,13 +629,11 @@ portfolioAssets.forEach((asset, index) => {
     baseImage.className = "asset-image asset-image-base";
     baseImage.src = `${ASSET_PATH}${asset.filename}`;
     baseImage.alt = asset.name.replaceAll("_", " ");
-    baseImage.loading = "lazy";
     const topImage = document.createElement("img");
     topImage.className = "asset-image asset-image-top anim-sway";
     topImage.src = `${ASSET_PATH}${asset.filename}`;
     topImage.alt = "";
     topImage.setAttribute("aria-hidden", "true");
-    topImage.loading = "lazy";
     topImage.style.animationDelay = `-${(Math.random() * 5).toFixed(2)}s`;
     anchor.appendChild(baseImage);
     anchor.appendChild(topImage);
@@ -645,7 +642,6 @@ portfolioAssets.forEach((asset, index) => {
     image.className = "asset-image";
     image.src = `${ASSET_PATH}${asset.filename}`;
     image.alt = asset.name.replaceAll("_", " ");
-    image.loading = "lazy";
     anchor.appendChild(image);
 
     if (asset.name === "Nether_Portal") {
@@ -801,8 +797,22 @@ function refreshSceneScale() {
   scene.style.transform = `translate3d(${txPx}px, ${tyPx}px, 0) scale(${finalScale})`;
 }
 
-window.addEventListener("resize", refreshSceneScale);
-setTimeout(() => {
+function initResponsiveMap() {
   refreshSceneScale();
-}, 500);
+  
+  const spatialViewportEl = document.getElementById("spatial-viewport");
+  if (spatialViewportEl && typeof ResizeObserver !== "undefined") {
+    // This watches the actual div, ignoring server load times
+    const ro = new ResizeObserver(() => {
+      requestAnimationFrame(refreshSceneScale);
+    });
+    ro.observe(spatialViewportEl);
+  } else {
+    // Fallback for older browsers
+    window.addEventListener("resize", refreshSceneScale);
+  }
+}
+
+// Run immediately, but let the observer handle the live server delays
+initResponsiveMap();
 
