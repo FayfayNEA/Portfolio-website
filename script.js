@@ -389,8 +389,7 @@ const donateBtn = document.createElement("a");
 donateBtn.id = "donate-btn";
 donateBtn.className = "donate-btn";
 donateBtn.href = "https://www.junglekeepers.org/cameras/remote-lake";
-donateBtn.target = "_blank";
-donateBtn.rel = "noopener noreferrer";
+donateBtn.target = "_top";
 donateBtn.textContent = "DONATE";
 {
   const rightEdgeX = netherSlot.left - DONATE_GAP_LEFT_OF_PORTAL;
@@ -652,6 +651,7 @@ portfolioAssets.forEach((asset, index) => {
   const anchor = document.createElement("a");
   anchor.className = "asset-link";
   anchor.href = `https://failennaselta.com/${asset.link}`;
+  anchor.target = "_top";
   anchor.setAttribute("aria-label", `${asset.name} — ${asset.hoverLabel ?? asset.link}`);
   anchor.style.zIndex =
     asset.name === "Orb"
