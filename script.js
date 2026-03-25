@@ -731,8 +731,9 @@ let lastViewportKey = "";
 
 function refreshSceneScale() {
   // clientWidth/Height avoids scrollbar vs innerWidth mismatch that can cause edge seams
-  const iw = document.getElementById('spatial-viewport').clientWidth || document.documentElement.clientWidth;
-  const ih = document.getElementById('spatial-viewport').clientHeight || document.documentElement.clientHeight;
+  const vp = document.getElementById("spatial-viewport");
+  const iw = vp?.clientWidth || document.documentElement.clientWidth;
+  const ih = vp?.clientHeight || document.documentElement.clientHeight;
   const viewportKey = `${iw}x${ih}`;
   if (viewportKey !== lastViewportKey) {
     lastViewportKey = viewportKey;
@@ -786,6 +787,8 @@ function refreshSceneScale() {
   scene.style.transform = `translate3d(${txPx}px, ${tyPx}px, 0) scale(${finalScale})`;
 }
 
-window.addEventListener("resize", refreshSceneScale);
 refreshSceneScale();
+
+const ro = new ResizeObserver(() => refreshSceneScale());
+ro.observe(document.getElementById("spatial-viewport"));
 
