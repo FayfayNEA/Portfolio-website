@@ -730,10 +730,11 @@ if (background.complete && background.naturalWidth > 0) {
 let lastViewportKey = "";
 
 function refreshSceneScale() {
-  // Force strict window dimensions to prevent iframe stretching
-  const iw = window.innerWidth;
-  const ih = window.innerHeight;
-  
+  /* Scale to the real #spatial-viewport box (matches Framer embed / iframe size). window inner dims can disagree with vw/vh. */
+  const vp = document.getElementById("spatial-viewport");
+  const iw = Math.max(1, vp?.clientWidth ?? window.innerWidth);
+  const ih = Math.max(1, vp?.clientHeight ?? window.innerHeight);
+
   const viewportKey = `${iw}x${ih}`;
   if (viewportKey !== lastViewportKey) {
     lastViewportKey = viewportKey;
@@ -791,3 +792,8 @@ function refreshSceneScale() {
 window.addEventListener("resize", refreshSceneScale);
 refreshSceneScale();
 
+const spatialViewportEl = document.getElementById("spatial-viewport");
+if (spatialViewportEl && typeof ResizeObserver !== "undefined") {
+  const ro = new ResizeObserver(() => refreshSceneScale());
+  ro.observe(spatialViewportEl);
+}

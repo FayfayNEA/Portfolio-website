@@ -4,9 +4,15 @@
   box-sizing: border-box;
 }
 
-html,
+html {
+  width: 100%;
+  height: 100%;
+  margin: 0;
+}
+
 body {
   width: 100%;
+  min-height: 100%;
   height: 100%;
   margin: 0;
   overflow: hidden;
@@ -97,12 +103,12 @@ body {
   font-variant-numeric: tabular-nums;
 }
 
+/* Fill the document (iframe-safe). Avoid 100vw/100vh — they can disagree with the real embed box in Framer/iframes. */
 #spatial-viewport {
-  position: fixed;
-  top: 0;
-  left: 0;
-  width: 100vw;
-  height: 100vh;
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
   overflow: hidden;
   isolation: auto;
   box-shadow: inset 0 0 0 6px #ffffff;
