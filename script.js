@@ -730,10 +730,9 @@ if (background.complete && background.naturalWidth > 0) {
 let lastViewportKey = "";
 
 function refreshSceneScale() {
-  const vp = document.getElementById("spatial-viewport");
-  const iw = vp.offsetWidth;
-  const ih = vp.offsetHeight;
-
+  // clientWidth/Height avoids scrollbar vs innerWidth mismatch that can cause edge seams
+  const iw = window.innerWidth;
+  const ih = window.innerHeight;
   const viewportKey = `${iw}x${ih}`;
   if (viewportKey !== lastViewportKey) {
     lastViewportKey = viewportKey;
@@ -758,16 +757,35 @@ function refreshSceneScale() {
 
   const rawScale = Math.min(iw / DESIGN_WIDTH, ih / DESIGN_HEIGHT);
   const scale = Math.round(rawScale * 1e6) / 1e6;
+
+  // Minimal inset — maximize visible map; viewport inset shadow handles hairlines
+  const edgeInset = 0.35 / Math.max(iw, ih);
+  const finalScale = scale * (1 - edgeInset);
+
+  const scaledW = DESIGN_WIDTH * finalScale;
+  const scaledH = DESIGN_HEIGHT * finalScale;
+
+  const marginX = Math.max(0, (iw - scaledW) / 2 - 2);
+  const marginY = Math.max(0, (ih - scaledH) / 2 - 2);
+  const horizontalNudge = Math.min(70, marginX);
+  const verticalNudge = Math.min(50, marginY);
+
+  let txPx = -DESIGN_WIDTH / 2 - SCENE_SHIFT_LEFT_EXTRA_PX;
+  let tyPx = (SCENE_Y_SHIFT_PERCENT / 100) * DESIGN_HEIGHT - verticalNudge;
   const dpr = window.devicePixelRatio || 1;
+  // Extra nudge downward at sizes where a black hairline appears along the top edge
+  const needsTopSeamFix =
+    (iw <= 940 && ih <= 894) || (iw > 1680 && ih <= 910);
+  if (needsTopSeamFix) {
+    tyPx += 3 / dpr;
+  }
+  const snap = (v) => Math.round(v * dpr) / dpr;
+  txPx = snap(txPx);
+  tyPx = snap(tyPx);
 
-  const txPx = Math.round((-DESIGN_WIDTH / 2) * dpr) / dpr;
-  const tyPx = Math.round(((SCENE_Y_SHIFT_PERCENT / 100) * DESIGN_HEIGHT) * dpr) / dpr;
-
-  scene.style.transform = `translate3d(${txPx}px, ${tyPx}px, 0) scale(${scale})`;
+  scene.style.transform = `translate3d(${txPx}px, ${tyPx}px, 0) scale(${finalScale})`;
 }
 
+window.addEventListener("resize", refreshSceneScale);
 refreshSceneScale();
-
-const ro = new ResizeObserver(() => refreshSceneScale());
-ro.observe(document.getElementById("spatial-viewport"));
 
