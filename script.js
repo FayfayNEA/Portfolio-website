@@ -767,9 +767,9 @@ function refreshSceneScale() {
   const marginY = Math.max(0, (ih - scaledH) / 2 - 2);
   const verticalNudge = Math.min(50, marginY);
 
-  // 1. Flexbox centers it perfectly, so we only calculate your custom nudges!
+  // Since margin: auto centers the box perfectly, we only apply your exact nudges!
   const extraX = -SCENE_SHIFT_LEFT_EXTRA_PX; 
-  let extraY = (((SCENE_Y_SHIFT_PERCENT + 50) / 100) * DESIGN_HEIGHT) - verticalNudge; 
+  let extraY = ((SCENE_Y_SHIFT_PERCENT / 100) * DESIGN_HEIGHT) - verticalNudge; 
 
   const dpr = window.devicePixelRatio || 1;
   const needsTopSeamFix = (iw <= 940 && ih <= 894) || (iw > 1680 && ih <= 910);
@@ -779,7 +779,7 @@ function refreshSceneScale() {
   
   const snap = (v) => Math.round(v * dpr) / dpr;
   
-  // 2. Apply the nudge translation and the scale
+  // Apply the translation and scale
   scene.style.transform = `translate3d(${snap(extraX)}px, ${snap(extraY)}px, 0) scale(${finalScale})`;
 }
 

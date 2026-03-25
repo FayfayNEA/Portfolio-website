@@ -103,21 +103,18 @@ body {
 
 #spatial-viewport {
   position: fixed;
-  top: 0;
-  left: 0;
+  inset: 0;
   width: 100vw;
   height: 100vh;
   overflow: hidden;
   background: #ffffff;
-  /* The magic bullet: Flexbox centering */
-  display: flex;
-  align-items: center;
-  justify-content: center;
   box-shadow: inset 0 0 0 6px #ffffff;
 }
 
 #spatial-scene {
-  position: relative; 
+  position: absolute;
+  inset: 0;
+  margin: auto;
   transform-origin: center center;
   will-change: transform;
   overflow: visible;
