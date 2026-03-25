@@ -2,12 +2,13 @@ const ASSET_PATH = "./assets/";
 const DESIGN_WIDTH = 1024;
 const DESIGN_HEIGHT = 580;
 const SCENE_Y_SHIFT_PERCENT = -54;
+const SCENE_SHIFT_UP_PX = 120;
 /** Extra leftward shift (px) so the map isn’t clipped on the right */
 const SCENE_SHIFT_LEFT_EXTRA_PX = 20;
 
 const portfolioAssets = [
   { name: "Jaguar", filename: "panther reflection.png", link: "about", hoverLabel: "About" },
-  { name: "Rocks_Foliage", filename: "rock with leaves.png", link: "Jahn", hoverLabel: "Jahn" },
+  { name: "Rocks_Foliage", filename: "rock with leaves.png", link: "jahn", hoverLabel: "Jahn" },
   {
     name: "Concrete_Block",
     filename: "colored block.png",
@@ -40,7 +41,8 @@ const sceneLayout = [
   { top: 344, left: 349, width: 150 }
 ];
 
-const layerByAsset = { Concrete_Block: 3, Large_Tree: 3, Jaguar: 5 };
+// Ensure overlapping hotspots click correctly (Concrete over Branding tree).
+const layerByAsset = { Concrete_Block: 6, Large_Tree: 3, Jaguar: 5 };
 const animationClassByAsset = {
   Large_Tree: "anim-sway",
   Money_Tree: "anim-sway",
@@ -824,6 +826,10 @@ function refreshSceneScale() {
     return;
   }
 
+  // Snap scale to device pixels for crisper text inside the transformed scene.
+  const dpr = window.devicePixelRatio || 1;
+  finalScale = Math.round(finalScale * dpr * 1024) / (dpr * 1024);
+
   const scaledW = DESIGN_WIDTH * finalScale;
   const scaledH = DESIGN_HEIGHT * finalScale;
 
@@ -833,8 +839,7 @@ function refreshSceneScale() {
   const verticalNudge = Math.min(50, marginY);
 
   let txPx = -DESIGN_WIDTH / 2 - SCENE_SHIFT_LEFT_EXTRA_PX;
-  let tyPx = (SCENE_Y_SHIFT_PERCENT / 100) * DESIGN_HEIGHT - verticalNudge;
-  const dpr = window.devicePixelRatio || 1;
+  let tyPx = (SCENE_Y_SHIFT_PERCENT / 100) * DESIGN_HEIGHT - verticalNudge - SCENE_SHIFT_UP_PX;
   
   const needsTopSeamFix =
     (iw <= 940 && ih <= 894) || (iw > 1680 && ih <= 910);
