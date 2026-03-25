@@ -101,7 +101,6 @@ body {
   font-variant-numeric: tabular-nums;
 }
 
-/* Fill the document (iframe-safe). Avoid 100vw/100vh — they can disagree with the real embed box in Framer/iframes. */
 #spatial-viewport {
   position: absolute;
   inset: 0;
@@ -114,11 +113,10 @@ body {
 
 #spatial-scene {
   position: absolute;
-  left: 50%;
-  top: 50%;
+  left: 0; /* Changed from 50% */
+  top: 0; /* Changed from 50% */
   transform-origin: center center;
   will-change: transform;
-  /* Let background2 extend past the 1024×580 frame so the bottom isn’t clipped */
   overflow: visible;
   background: transparent;
 }

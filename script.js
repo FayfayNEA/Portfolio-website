@@ -730,11 +730,10 @@ if (background.complete && background.naturalWidth > 0) {
 let lastViewportKey = "";
 
 function refreshSceneScale() {
-  /* Scale to the real #spatial-viewport box (matches Framer embed / iframe size). window inner dims can disagree with vw/vh. */
-  const vp = document.getElementById("spatial-viewport");
-  const iw = document.documentElement.clientWidth;
-  const ih = document.documentElement.clientHeight;
-
+  // 1. Lock onto the true visible window, ignoring the document body completely
+  const iw = window.innerWidth;
+  const ih = window.innerHeight;
+  
   const viewportKey = `${iw}x${ih}`;
   if (viewportKey !== lastViewportKey) {
     lastViewportKey = viewportKey;
@@ -760,7 +759,6 @@ function refreshSceneScale() {
   const rawScale = Math.min(iw / DESIGN_WIDTH, ih / DESIGN_HEIGHT);
   const scale = Math.round(rawScale * 1e6) / 1e6;
 
-  // Minimal inset — maximize visible map; viewport inset shadow handles hairlines
   const edgeInset = 0.35 / Math.max(iw, ih);
   const finalScale = scale * (1 - edgeInset);
 
@@ -772,16 +770,16 @@ function refreshSceneScale() {
   const horizontalNudge = Math.min(70, marginX);
   const verticalNudge = Math.min(50, marginY);
 
-  let txPx = -DESIGN_WIDTH / 2 - SCENE_SHIFT_LEFT_EXTRA_PX;
-  let tyPx = (SCENE_Y_SHIFT_PERCENT / 100) * DESIGN_HEIGHT - verticalNudge;
+  // 2. THE BULLETPROOF FIX: Calculate exact pixels from Top-Left (0,0)
+  let txPx = (iw / 2) - (DESIGN_WIDTH / 2) - SCENE_SHIFT_LEFT_EXTRA_PX;
+  let tyPx = (ih / 2) - (DESIGN_HEIGHT / 2) + ((SCENE_Y_SHIFT_PERCENT / 100) * DESIGN_HEIGHT) - verticalNudge;
+
   const dpr = window.devicePixelRatio || 1;
-  
-  // Extra nudge downward at sizes where a black hairline appears along the top edge
-  const needsTopSeamFix =
-    (iw <= 940 && ih <= 894) || (iw > 1680 && ih <= 910);
+  const needsTopSeamFix = (iw <= 940 && ih <= 894) || (iw > 1680 && ih <= 910);
   if (needsTopSeamFix) {
     tyPx += 3 / dpr;
   }
+  
   const snap = (v) => Math.round(v * dpr) / dpr;
   txPx = snap(txPx);
   tyPx = snap(tyPx);
