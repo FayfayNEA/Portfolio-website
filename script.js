@@ -728,6 +728,7 @@ if (background.complete && background.naturalWidth > 0) {
 }
 
 let lastViewportKey = "";
+let sceneScaleRetryFrames = 0;
 
 function refreshSceneScale() {
   // 1. Measure the physical DOM container
@@ -739,9 +740,11 @@ function refreshSceneScale() {
 
   // FIXED: retry on next frame instead of proceeding with bad values
   if (iw < 1 || ih < 1) {
+    sceneScaleRetryFrames = Math.min(sceneScaleRetryFrames + 1, 120);
     requestAnimationFrame(refreshSceneScale);
     return;
   }
+  sceneScaleRetryFrames = 0;
 
   const viewportKey = `${iw}x${ih}`;
   if (viewportKey !== lastViewportKey) {
@@ -775,7 +778,14 @@ function refreshSceneScale() {
   
   // Guarantee finalScale is always a valid number
   let finalScale = scale * (1 - edgeInset);
-  if (isNaN(finalScale) || finalScale <= 0) return; // was: finalScale = 0
+  if (!Number.isFinite(finalScale) || finalScale <= 0) {
+    // Transient bad layout values can happen in embeds during refresh; keep trying.
+    if (sceneScaleRetryFrames < 30) {
+      sceneScaleRetryFrames += 1;
+      requestAnimationFrame(refreshSceneScale);
+    }
+    return;
+  }
 
   const scaledW = DESIGN_WIDTH * finalScale;
   const scaledH = DESIGN_HEIGHT * finalScale;
@@ -800,7 +810,13 @@ function refreshSceneScale() {
   tyPx = snap(tyPx);
 
   // NEW: Abort if the live server gives us bad math
-  if (isNaN(txPx) || isNaN(tyPx) || isNaN(finalScale)) return;
+  if (!Number.isFinite(txPx) || !Number.isFinite(tyPx) || !Number.isFinite(finalScale)) {
+    if (sceneScaleRetryFrames < 30) {
+      sceneScaleRetryFrames += 1;
+      requestAnimationFrame(refreshSceneScale);
+    }
+    return;
+  }
 
   // Apply the unbreakable transform
   scene.style.transform = `translate3d(${txPx}px, ${tyPx}px, 0) scale(${finalScale})`;
@@ -823,4 +839,5 @@ function initResponsiveMap() {
 // Run immediately, but let the observer handle the live server delays
 initResponsiveMap();
 window.addEventListener("load", () => requestAnimationFrame(refreshSceneScale), { once: true });
+window.addEventListener("pageshow", () => requestAnimationFrame(refreshSceneScale));
 
