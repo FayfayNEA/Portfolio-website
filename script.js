@@ -732,8 +732,8 @@ let lastViewportKey = "";
 function refreshSceneScale() {
   /* Scale to the real #spatial-viewport box (matches Framer embed / iframe size). window inner dims can disagree with vw/vh. */
   const vp = document.getElementById("spatial-viewport");
-  const iw = Math.max(1, vp?.clientWidth ?? window.innerWidth);
-  const ih = Math.max(1, vp?.clientHeight ?? window.innerHeight);
+  const iw = document.documentElement.clientWidth;
+  const ih = document.documentElement.clientHeight;
 
   const viewportKey = `${iw}x${ih}`;
   if (viewportKey !== lastViewportKey) {
