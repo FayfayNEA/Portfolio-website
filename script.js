@@ -730,20 +730,16 @@ if (background.complete && background.naturalWidth > 0) {
 let lastViewportKey = "";
 
 function refreshSceneScale() {
-  // 1. Measure the physical DOM container, not the volatile 'window'
+  // 1. Measure the physical DOM container
   const viewportEl = document.getElementById("spatial-viewport");
   if (!viewportEl) return;
 
-  const iw = viewportEl.clientWidth;
-  const ih = viewportEl.clientHeight;
+  // 2. Break the deadlock: Fallback to window dimensions if the container hasn't hydrated yet
+  const iw = viewportEl.clientWidth || window.innerWidth;
+  const ih = viewportEl.clientHeight || window.innerHeight;
 
-  // 2. THE INFINITE RETRY LOOP (The Fix)
-  // If the browser collapses the iframe to 0x0 during a soft refresh, 
-  // do NOT abort. Tell the browser to wait exactly 1 frame and try again.
-  if (iw === 0 || ih === 0) {
-    requestAnimationFrame(refreshSceneScale);
-    return;
-  }
+  // REMOVED: The Infinite Retry Loop (iw === 0 || ih === 0)
+  // The ResizeObserver at the bottom of your script will naturally handle any deferred resizing!
 
   const viewportKey = `${iw}x${ih}`;
   if (viewportKey !== lastViewportKey) {
