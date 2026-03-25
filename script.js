@@ -730,9 +730,10 @@ if (background.complete && background.naturalWidth > 0) {
 let lastViewportKey = "";
 
 function refreshSceneScale() {
-  // clientWidth/Height avoids scrollbar vs innerWidth mismatch that can cause edge seams
+  // Force strict window dimensions to prevent iframe stretching
   const iw = window.innerWidth;
   const ih = window.innerHeight;
+  
   const viewportKey = `${iw}x${ih}`;
   if (viewportKey !== lastViewportKey) {
     lastViewportKey = viewportKey;
@@ -773,6 +774,7 @@ function refreshSceneScale() {
   let txPx = -DESIGN_WIDTH / 2 - SCENE_SHIFT_LEFT_EXTRA_PX;
   let tyPx = (SCENE_Y_SHIFT_PERCENT / 100) * DESIGN_HEIGHT - verticalNudge;
   const dpr = window.devicePixelRatio || 1;
+  
   // Extra nudge downward at sizes where a black hairline appears along the top edge
   const needsTopSeamFix =
     (iw <= 940 && ih <= 894) || (iw > 1680 && ih <= 910);
