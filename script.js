@@ -802,10 +802,7 @@ function refreshSceneScale() {
 }
 
 window.addEventListener("resize", refreshSceneScale);
-refreshSceneScale();
+setTimeout(() => {
+  refreshSceneScale();
+}, 500);
 
-const spatialViewportEl = document.getElementById("spatial-viewport");
-if (spatialViewportEl && typeof ResizeObserver !== "undefined") {
-  const ro = new ResizeObserver(() => refreshSceneScale());
-  ro.observe(spatialViewportEl);
-}
