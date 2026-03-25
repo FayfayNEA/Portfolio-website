@@ -109,10 +109,11 @@ body {
 }
 
 #spatial-scene {
-  position: absolute;
+  position: relative;
   left: 50%;
   top: 50%;
   transform-origin: center center;
+  min-height: 100vh;
   will-change: transform;
   /* Let background2 extend past the 1024×580 frame so the bottom isn’t clipped */
   overflow: visible;
