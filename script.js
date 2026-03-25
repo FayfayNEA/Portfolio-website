@@ -730,13 +730,20 @@ if (background.complete && background.naturalWidth > 0) {
 let lastViewportKey = "";
 
 function refreshSceneScale() {
-  const iw = window.innerWidth;
-  const ih = window.innerHeight;
+  // 1. Measure the physical DOM container, not the volatile 'window'
+  const viewportEl = document.getElementById("spatial-viewport");
+  if (!viewportEl) return;
 
-  // 🛑 THE KILL SWITCH: Prevent the NaN Math Crash
-  // If the browser momentarily drops to 0x0 during a refresh, stop immediately.
-  // This prevents '0.35 / 0 = Infinity', which drops the CSS transform.
-  if (iw === 0 || ih === 0) return;
+  const iw = viewportEl.clientWidth;
+  const ih = viewportEl.clientHeight;
+
+  // 2. THE INFINITE RETRY LOOP (The Fix)
+  // If the browser collapses the iframe to 0x0 during a soft refresh, 
+  // do NOT abort. Tell the browser to wait exactly 1 frame and try again.
+  if (iw === 0 || ih === 0) {
+    requestAnimationFrame(refreshSceneScale);
+    return;
+  }
 
   const viewportKey = `${iw}x${ih}`;
   if (viewportKey !== lastViewportKey) {
@@ -760,11 +767,17 @@ function refreshSceneScale() {
     }
   }
 
+  // 3. Your original, flawless math
   const rawScale = Math.min(iw / DESIGN_WIDTH, ih / DESIGN_HEIGHT);
   const scale = Math.round(rawScale * 1e6) / 1e6;
 
-  const edgeInset = 0.35 / Math.max(iw, ih);
-  const finalScale = scale * (1 - edgeInset);
+  // Added a fallback to 1 to mathematically guarantee Infinity cannot occur
+  const maxDim = Math.max(iw, ih) || 1; 
+  const edgeInset = 0.35 / maxDim;
+  
+  // Guarantee finalScale is always a valid number
+  let finalScale = scale * (1 - edgeInset);
+  if (isNaN(finalScale) || finalScale <= 0) finalScale = 0;
 
   const scaledW = DESIGN_WIDTH * finalScale;
   const scaledH = DESIGN_HEIGHT * finalScale;
@@ -783,10 +796,12 @@ function refreshSceneScale() {
   if (needsTopSeamFix) {
     tyPx += 3 / dpr;
   }
+  
   const snap = (v) => Math.round(v * dpr) / dpr;
   txPx = snap(txPx);
   tyPx = snap(tyPx);
 
+  // Apply the unbreakable transform
   scene.style.transform = `translate3d(${txPx}px, ${tyPx}px, 0) scale(${finalScale})`;
 }
 
