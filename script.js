@@ -793,6 +793,9 @@ function refreshSceneScale() {
   txPx = snap(txPx);
   tyPx = snap(tyPx);
 
+  // NEW: Abort if the live server gives us bad math
+  if (isNaN(txPx) || isNaN(tyPx) || isNaN(finalScale)) return;
+
   // Apply the unbreakable transform
   scene.style.transform = `translate3d(${txPx}px, ${tyPx}px, 0) scale(${finalScale})`;
 }
