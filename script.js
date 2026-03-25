@@ -730,12 +730,14 @@ function refreshSceneScale() {
   const viewportEl = document.getElementById("spatial-viewport");
   if (!viewportEl) return;
 
-  // 2. Break the deadlock: Fallback to window dimensions if the container hasn't hydrated yet
   const iw = viewportEl.clientWidth || window.innerWidth;
   const ih = viewportEl.clientHeight || window.innerHeight;
 
-  // REMOVED: The Infinite Retry Loop (iw === 0 || ih === 0)
-  // The ResizeObserver at the bottom of your script will naturally handle any deferred resizing!
+  // FIXED: retry on next frame instead of proceeding with bad values
+  if (iw < 1 || ih < 1) {
+    requestAnimationFrame(refreshSceneScale);
+    return;
+  }
 
   const viewportKey = `${iw}x${ih}`;
   if (viewportKey !== lastViewportKey) {
@@ -769,7 +771,7 @@ function refreshSceneScale() {
   
   // Guarantee finalScale is always a valid number
   let finalScale = scale * (1 - edgeInset);
-  if (isNaN(finalScale) || finalScale <= 0) finalScale = 0;
+  if (isNaN(finalScale) || finalScale <= 0) return; // was: finalScale = 0
 
   const scaledW = DESIGN_WIDTH * finalScale;
   const scaledH = DESIGN_HEIGHT * finalScale;
@@ -801,21 +803,20 @@ function refreshSceneScale() {
 }
 
 function initResponsiveMap() {
-  refreshSceneScale();
-  
+  // Defer past the first paint — critical for cached loads on GitHub Pages
+  requestAnimationFrame(() => requestAnimationFrame(refreshSceneScale));
+
   const spatialViewportEl = document.getElementById("spatial-viewport");
   if (spatialViewportEl && typeof ResizeObserver !== "undefined") {
-    // This watches the actual div, ignoring server load times
     const ro = new ResizeObserver(() => {
       requestAnimationFrame(refreshSceneScale);
     });
     ro.observe(spatialViewportEl);
   } else {
-    // Fallback for older browsers
     window.addEventListener("resize", refreshSceneScale);
   }
 }
-
 // Run immediately, but let the observer handle the live server delays
 initResponsiveMap();
+window.addEventListener("load", () => requestAnimationFrame(refreshSceneScale), { once: true });
 
