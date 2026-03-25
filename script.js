@@ -730,6 +730,7 @@ if (background.complete && background.naturalWidth > 0) {
 let lastViewportKey = "";
 
 function refreshSceneScale() {
+  // ALWAYS use window.inner. document.client lies during a hard refresh.
   const iw = window.innerWidth;
   const ih = window.innerHeight;
   
@@ -764,23 +765,25 @@ function refreshSceneScale() {
   const scaledW = DESIGN_WIDTH * finalScale;
   const scaledH = DESIGN_HEIGHT * finalScale;
 
+  const marginX = Math.max(0, (iw - scaledW) / 2 - 2);
   const marginY = Math.max(0, (ih - scaledH) / 2 - 2);
+  const horizontalNudge = Math.min(70, marginX);
   const verticalNudge = Math.min(50, marginY);
 
-  // Since margin: auto centers the box perfectly, we only apply your exact nudges!
-  const extraX = -SCENE_SHIFT_LEFT_EXTRA_PX; 
-  let extraY = ((SCENE_Y_SHIFT_PERCENT / 100) * DESIGN_HEIGHT) - verticalNudge; 
+  // YOUR ORIGINAL MATH - No flexbox offsets, just your pure calculations
+  let txPx = -DESIGN_WIDTH / 2 - SCENE_SHIFT_LEFT_EXTRA_PX;
+  let tyPx = (SCENE_Y_SHIFT_PERCENT / 100) * DESIGN_HEIGHT - verticalNudge;
 
   const dpr = window.devicePixelRatio || 1;
   const needsTopSeamFix = (iw <= 940 && ih <= 894) || (iw > 1680 && ih <= 910);
   if (needsTopSeamFix) {
-    extraY += 3 / dpr;
+    tyPx += 3 / dpr;
   }
-  
   const snap = (v) => Math.round(v * dpr) / dpr;
-  
-  // Apply the translation and scale
-  scene.style.transform = `translate3d(${snap(extraX)}px, ${snap(extraY)}px, 0) scale(${finalScale})`;
+  txPx = snap(txPx);
+  tyPx = snap(tyPx);
+
+  scene.style.transform = `translate3d(${txPx}px, ${tyPx}px, 0) scale(${finalScale})`;
 }
 
 window.addEventListener("resize", refreshSceneScale);
