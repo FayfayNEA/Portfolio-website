@@ -9,11 +9,10 @@ body {
   width: 100%;
   height: 100%;
   margin: 0;
-  padding: 0;
   overflow: hidden;
+  font-family: "Inter", "Segoe UI", Roboto, sans-serif;
   background: #ffffff;
-  /* This locks the body to the viewport, killing the refresh bug dead */
-  position: fixed; 
+  position: fixed; /* Locks the viewport */
   top: 0;
   left: 0;
 }
@@ -103,11 +102,11 @@ body {
 
 #spatial-viewport {
   position: absolute;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
+  inset: 0;
+  width: auto;
+  height: auto;
   overflow: hidden;
+  isolation: auto;
   box-shadow: inset 0 0 0 6px #ffffff;
 }
 

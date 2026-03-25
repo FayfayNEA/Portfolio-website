@@ -730,10 +730,14 @@ if (background.complete && background.naturalWidth > 0) {
 let lastViewportKey = "";
 
 function refreshSceneScale() {
-  // ALWAYS use window.inner. document.client lies during a hard refresh.
   const iw = window.innerWidth;
   const ih = window.innerHeight;
-  
+
+  // 🛑 THE KILL SWITCH: Prevent the NaN Math Crash
+  // If the browser momentarily drops to 0x0 during a refresh, stop immediately.
+  // This prevents '0.35 / 0 = Infinity', which drops the CSS transform.
+  if (iw === 0 || ih === 0) return;
+
   const viewportKey = `${iw}x${ih}`;
   if (viewportKey !== lastViewportKey) {
     lastViewportKey = viewportKey;
@@ -770,12 +774,12 @@ function refreshSceneScale() {
   const horizontalNudge = Math.min(70, marginX);
   const verticalNudge = Math.min(50, marginY);
 
-  // YOUR ORIGINAL MATH - No flexbox offsets, just your pure calculations
   let txPx = -DESIGN_WIDTH / 2 - SCENE_SHIFT_LEFT_EXTRA_PX;
   let tyPx = (SCENE_Y_SHIFT_PERCENT / 100) * DESIGN_HEIGHT - verticalNudge;
-
   const dpr = window.devicePixelRatio || 1;
-  const needsTopSeamFix = (iw <= 940 && ih <= 894) || (iw > 1680 && ih <= 910);
+  
+  const needsTopSeamFix =
+    (iw <= 940 && ih <= 894) || (iw > 1680 && ih <= 910);
   if (needsTopSeamFix) {
     tyPx += 3 / dpr;
   }
