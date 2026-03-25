@@ -366,6 +366,9 @@ function startTooltipTypewriter(text, pos) {
   }, 52);
 }
 
+/** 1024×580 cover raster — used to skip “paper” for the bird (looser than leaf mask) */
+let backgroundPickImageData = null;
+
 const background = document.createElement("img");
 background.className = "spatial-bg";
 background.src = assetUrl("background2.png");
@@ -452,9 +455,6 @@ function drawImageCover(context, image, canvasWidth, canvasHeight) {
   }
   context.drawImage(image, offsetX, offsetY, drawWidth, drawHeight);
 }
-
-/** 1024×580 cover raster — used to skip “paper” for the bird (looser than leaf mask) */
-let backgroundPickImageData = null;
 
 function refreshBackgroundPickBuffer() {
   if (typeof background === "undefined" || !background.naturalWidth) return;
