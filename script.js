@@ -78,6 +78,43 @@ const BIRD_FLIGHT_FRAMES = [
   "bird in flight 3.png"
 ];
 
+function showRuntimeErrorBanner(message) {
+  try {
+    let el = document.getElementById("runtime-error-banner");
+    if (!el) {
+      el = document.createElement("div");
+      el.id = "runtime-error-banner";
+      el.style.position = "fixed";
+      el.style.left = "12px";
+      el.style.top = "12px";
+      el.style.maxWidth = "min(820px, calc(100vw - 24px))";
+      el.style.padding = "10px 12px";
+      el.style.background = "rgba(10, 10, 10, 0.92)";
+      el.style.color = "#fff";
+      el.style.font = "12px/1.35 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace";
+      el.style.zIndex = "999999";
+      el.style.borderRadius = "8px";
+      el.style.whiteSpace = "pre-wrap";
+      el.style.pointerEvents = "auto";
+      el.title = "Runtime error (click to dismiss)";
+      el.addEventListener("click", () => el.remove());
+      document.body.appendChild(el);
+    }
+    el.textContent = `Runtime error:\n${String(message ?? "Unknown error")}`;
+  } catch {
+    // ignore
+  }
+}
+
+window.addEventListener("error", (e) => {
+  const msg = e?.error?.stack || e?.message || "Unknown error";
+  showRuntimeErrorBanner(msg);
+});
+window.addEventListener("unhandledrejection", (e) => {
+  const reason = e?.reason?.stack || e?.reason || "Unhandled rejection";
+  showRuntimeErrorBanner(reason);
+});
+
 const BIRD_CATCH_STORAGE_KEY = "birdCatchesEver";
 /** Slower = longer linear move (seconds); end timer should run just after motion finishes */
 const BIRD_FLIGHT_DURATION_SEC = 8;
@@ -840,4 +877,14 @@ function initResponsiveMap() {
 initResponsiveMap();
 window.addEventListener("load", () => requestAnimationFrame(refreshSceneScale), { once: true });
 window.addEventListener("pageshow", () => requestAnimationFrame(refreshSceneScale));
+
+// Extra safety: for embed environments that report size late, re-apply for ~2s.
+{
+  const start = Date.now();
+  const pump = () => {
+    refreshSceneScale();
+    if (Date.now() - start < 2000) requestAnimationFrame(pump);
+  };
+  requestAnimationFrame(pump);
+}
 
