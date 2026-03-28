@@ -11,7 +11,7 @@ const ASSET_DISPLAY_SCALE = 1.3;
 /** Background art: desktop vs narrow viewports (matches #spatial-viewport width, e.g. Framer embed) */
 const BACKGROUND_DESKTOP_FILE = "background2.png";
 const BACKGROUND_MOBILE_FILE = "waterfall.png";
-const MOBILE_BACKGROUND_MAX_WIDTH_PX = 500;
+const MOBILE_BACKGROUND_MAX_WIDTH_PX = 809;
 
 const portfolioAssets = [
   { name: "Jaguar", filename: "panther reflection.png", link: "about", hoverLabel: "About" },
