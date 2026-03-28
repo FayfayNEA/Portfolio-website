@@ -5,6 +5,13 @@ const SCENE_Y_SHIFT_PERCENT = -54;
 const SCENE_SHIFT_UP_PX = 120;
 /** Extra leftward shift (px) so the map isn’t clipped on the right */
 const SCENE_SHIFT_LEFT_EXTRA_PX = 20;
+/** Uniform scale for all portfolio hotspots (width drives img size; height follows aspect ratio) */
+const ASSET_DISPLAY_SCALE = 1.3;
+
+/** Background art: desktop vs narrow viewports (matches #spatial-viewport width, e.g. Framer embed) */
+const BACKGROUND_DESKTOP_FILE = "background2.png";
+const BACKGROUND_MOBILE_FILE = "waterfall.png";
+const MOBILE_BACKGROUND_MAX_WIDTH_PX = 500;
 
 const portfolioAssets = [
   { name: "Jaguar", filename: "panther reflection.png", link: "about", hoverLabel: "About" },
@@ -40,6 +47,36 @@ const sceneLayout = [
   { top: 233, left: 230, width: 138 },
   { top: 344, left: 349, width: 150 }
 ];
+
+/** Per-slot deltas (design px) when viewport ≤ MOBILE_BACKGROUND_MAX_WIDTH_PX — shift with waterfall + narrow screen */
+const MOBILE_SCENE_ADJUSTMENTS = [
+  { dTop:100, dLeft: -130, dWidth: -10 }, // Jaguar — +40px down vs prior base
+  { dTop:20, dLeft: 130, dWidth: -8 }, // Rocks_Foliage — +30 down, +30 right
+  { dTop: 74, dLeft: -160, dWidth: -10 }, // Concrete_Block — +30 down, −20 left
+  { dTop: 36, dLeft: -170, dWidth: -20 }, // Large_Tree — +30 down, −20 left
+  { dTop: 20, dLeft: -5, dWidth: -14 }, // Radio — +20 down, −10 left
+  { dTop: -14, dLeft: 88, dWidth: -5 }, // Orb
+  { dTop: -100, dLeft:155,dWidth: -16 }, // Screen_Tablet — +30 down
+  { dTop: 48, dLeft: -84, dWidth: -12 }, // Nether_Portal — +30 down
+  { dTop: 168, dLeft:-22, dWidth: -14 } // Money_Tree — +50 down, −50 left
+];
+
+function isMobileViewportWidth(widthPx) {
+  return widthPx <= MOBILE_BACKGROUND_MAX_WIDTH_PX;
+}
+
+function effectiveSceneLayoutForWidth(widthPx) {
+  const mobile = isMobileViewportWidth(widthPx);
+  return sceneLayout.map((c, i) => {
+    if (!mobile) return { top: c.top, left: c.left, width: c.width };
+    const adj = MOBILE_SCENE_ADJUSTMENTS[i] ?? {};
+    return {
+      top: c.top + (adj.dTop ?? 0),
+      left: c.left + (adj.dLeft ?? 0),
+      width: Math.max(36, c.width + (adj.dWidth ?? 0))
+    };
+  });
+}
 
 // Ensure overlapping hotspots click correctly (Concrete over Branding tree).
 const layerByAsset = { Concrete_Block: 6, Large_Tree: 3, Jaguar: 5 };
@@ -169,15 +206,16 @@ function getBrandingTreeScreenRect() {
   if (!tree) return null;
   const r = tree.getBoundingClientRect();
   if (r.width >= 4 && r.height >= 4) return r;
-  const layout = sceneLayout[BRANDING_TREE_SCENE_INDEX];
+  const layout = effectiveSceneLayoutForWidth(viewport.clientWidth || window.innerWidth)[BRANDING_TREE_SCENE_INDEX];
   if (!layout) return null;
   const sr = scene.getBoundingClientRect();
   const s = sr.width / DESIGN_WIDTH;
+  const wDesign = layout.width * ASSET_DISPLAY_SCALE;
   return {
     left: sr.left + layout.left * s,
     top: sr.top + layout.top * s,
-    width: layout.width * s,
-    height: Math.max(48, layout.width * s * 1.05)
+    width: wDesign * s,
+    height: Math.max(48, wDesign * s * 1.05)
   };
 }
 
@@ -371,13 +409,41 @@ function startTooltipTypewriter(text, pos) {
 /** 1024×580 cover raster — used to skip “paper” for the bird (looser than leaf mask) */
 let backgroundPickImageData = null;
 
+let ambientLeavesBuilt = false;
+let leavesLayerMounted = false;
+
 const background = document.createElement("img");
 background.className = "spatial-bg";
-background.src = assetUrl("background2.png");
 background.alt = "";
 scene.appendChild(background);
 
-background.addEventListener("load", refreshBackgroundPickBuffer);
+let currentBackgroundVariant = null;
+
+function syncBackgroundImageToViewport(widthPx) {
+  const w =
+    Number.isFinite(widthPx) && widthPx > 0
+      ? widthPx
+      : Math.max(1, viewport.clientWidth || window.innerWidth);
+  const mobile = w <= MOBILE_BACKGROUND_MAX_WIDTH_PX;
+  const next = mobile ? "mobile" : "desktop";
+  if (next === currentBackgroundVariant) return;
+  currentBackgroundVariant = next;
+  background.src = assetUrl(mobile ? BACKGROUND_MOBILE_FILE : BACKGROUND_DESKTOP_FILE);
+  background.classList.toggle("spatial-bg--mobile", mobile);
+}
+
+function onBackgroundImageLoad() {
+  refreshBackgroundPickBuffer();
+  if (leavesLayerMounted) {
+    const maskUrl = createLeafBackgroundMaskDataUrl(background);
+    if (maskUrl) applyLeavesRootMask(maskUrl);
+    refreshBackgroundPickBuffer();
+  }
+}
+
+background.addEventListener("load", onBackgroundImageLoad);
+syncBackgroundImageToViewport(0);
+
 if (background.complete && background.naturalWidth > 0) {
   refreshBackgroundPickBuffer();
 }
@@ -434,6 +500,9 @@ scene.appendChild(dustLayer);
 
 const leavesRoot = document.createElement("div");
 leavesRoot.className = "ambient-leaves-root";
+
+/** Populated in buildAmbientLeaves — repositioned on mobile in applySceneLayoutForViewportWidth */
+const leafZoneMeta = [];
 
 function drawImageCover(context, image, canvasWidth, canvasHeight) {
   const imgW = image.naturalWidth || image.width;
@@ -555,8 +624,6 @@ function applyLeavesRootMask(dataUrl) {
   leavesRoot.style.maskPosition = "center";
 }
 
-let ambientLeavesBuilt = false;
-let leavesLayerMounted = false;
 function buildAmbientLeaves() {
   if (ambientLeavesBuilt) return;
   ambientLeavesBuilt = true;
@@ -571,6 +638,7 @@ function buildAmbientLeaves() {
     zoneEl.style.left = `${coords.left}px`;
     zoneEl.style.width = `${coords.width}px`;
     zoneEl.style.height = `${zone.heightPx}px`;
+    leafZoneMeta.push({ el: zoneEl, sceneIndex: zone.sceneIndex, heightPx: zone.heightPx });
     leavesRoot.appendChild(zoneEl);
     for (let k = 0; k < count; k += 1) {
       const wrapper = document.createElement("div");
@@ -608,9 +676,10 @@ function mountLeavesLayer() {
 }
 
 function applyCoordinates(node, coords) {
+  const w = Math.round(coords.width * ASSET_DISPLAY_SCALE * 10) / 10;
   node.style.top = `${coords.top}px`;
   node.style.left = `${coords.left}px`;
-  node.style.width = `${coords.width}px`;
+  node.style.width = `${w}px`;
 }
 
 function attachStaticPulseOverlay(anchor, overlayFilename, topOffsetPx = 0, leftOffsetPx = 0, scale = 1) {
@@ -648,6 +717,8 @@ function addRadioMusicNotes(anchor) {
     anchor.appendChild(note);
   }
 }
+
+const sceneAssetAnchors = [];
 
 portfolioAssets.forEach((asset, index) => {
   const anchor = document.createElement("a");
@@ -719,7 +790,31 @@ portfolioAssets.forEach((asset, index) => {
   anchor.addEventListener("blur", dismissTooltip);
 
   scene.appendChild(anchor);
+  sceneAssetAnchors.push(anchor);
 });
+
+function applySceneLayoutForViewportWidth(widthPx) {
+  const layout = effectiveSceneLayoutForWidth(widthPx);
+  sceneAssetAnchors.forEach((a, i) => {
+    const slot = layout[i];
+    if (slot) applyCoordinates(a, slot);
+  });
+  const portalSlot = layout[NETHER_SCENE_INDEX];
+  if (portalSlot) {
+    const rightEdgeX = portalSlot.left - DONATE_GAP_LEFT_OF_PORTAL;
+    const buttonBottomY = portalSlot.top - DONATE_GAP_ABOVE_PORTAL_TOP;
+    donateBtn.style.left = `${rightEdgeX}px`;
+    donateBtn.style.bottom = `${DESIGN_HEIGHT - buttonBottomY}px`;
+  }
+  leafZoneMeta.forEach(({ el, sceneIndex, heightPx }) => {
+    const c = layout[sceneIndex];
+    if (!c || !el) return;
+    el.style.top = `${c.top}px`;
+    el.style.left = `${c.left}px`;
+    el.style.width = `${c.width}px`;
+    el.style.height = `${heightPx}px`;
+  });
+}
 
 function bindBirdBackgroundTrigger() {
   let lastBirdHoverAt = 0;
@@ -784,6 +879,9 @@ function refreshSceneScale() {
     return;
   }
   sceneScaleRetryFrames = 0;
+
+  syncBackgroundImageToViewport(iw);
+  applySceneLayoutForViewportWidth(iw);
 
   const viewportKey = `${iw}x${ih}`;
   if (viewportKey !== lastViewportKey) {
