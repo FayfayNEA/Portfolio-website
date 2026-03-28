@@ -12,6 +12,9 @@ const ASSET_DISPLAY_SCALE = 1.3;
 const BACKGROUND_DESKTOP_FILE = "background2.png";
 const BACKGROUND_MOBILE_FILE = "waterfall.png";
 const MOBILE_BACKGROUND_MAX_WIDTH_PX = 809;
+/** Mobile: raise DONATE (larger `bottom` in design px); shift right in design px */
+const MOBILE_DONATE_BOTTOM_BOOST_PX = 100;
+const MOBILE_DONATE_LEFT_SHIFT_PX = 80;
 
 const portfolioAssets = [
   { name: "Jaguar", filename: "panther reflection.png", link: "about", hoverLabel: "About" },
@@ -63,6 +66,18 @@ const MOBILE_SCENE_ADJUSTMENTS = [
 
 function isMobileViewportWidth(widthPx) {
   return widthPx <= MOBILE_BACKGROUND_MAX_WIDTH_PX;
+}
+
+function donateBottomPx(buttonBottomY, widthPx) {
+  let b = DESIGN_HEIGHT - buttonBottomY;
+  if (isMobileViewportWidth(widthPx)) b += MOBILE_DONATE_BOTTOM_BOOST_PX;
+  return b;
+}
+
+function donateLeftPx(rightEdgeX, widthPx) {
+  let x = rightEdgeX;
+  if (isMobileViewportWidth(widthPx)) x += MOBILE_DONATE_LEFT_SHIFT_PX;
+  return x;
 }
 
 function effectiveSceneLayoutForWidth(widthPx) {
@@ -463,8 +478,9 @@ donateBtn.textContent = "DONATE";
 {
   const rightEdgeX = netherSlot.left - DONATE_GAP_LEFT_OF_PORTAL;
   const buttonBottomY = netherSlot.top - DONATE_GAP_ABOVE_PORTAL_TOP;
-  donateBtn.style.left = `${rightEdgeX}px`;
-  donateBtn.style.bottom = `${DESIGN_HEIGHT - buttonBottomY}px`;
+  const vw = viewport.clientWidth || window.innerWidth;
+  donateBtn.style.left = `${donateLeftPx(rightEdgeX, vw)}px`;
+  donateBtn.style.bottom = `${donateBottomPx(buttonBottomY, vw)}px`;
 }
 scene.appendChild(donateBtn);
 
@@ -806,8 +822,8 @@ function applySceneLayoutForViewportWidth(widthPx) {
   if (portalSlot) {
     const rightEdgeX = portalSlot.left - DONATE_GAP_LEFT_OF_PORTAL;
     const buttonBottomY = portalSlot.top - DONATE_GAP_ABOVE_PORTAL_TOP;
-    donateBtn.style.left = `${rightEdgeX}px`;
-    donateBtn.style.bottom = `${DESIGN_HEIGHT - buttonBottomY}px`;
+    donateBtn.style.left = `${donateLeftPx(rightEdgeX, widthPx)}px`;
+    donateBtn.style.bottom = `${donateBottomPx(buttonBottomY, widthPx)}px`;
   }
   leafZoneMeta.forEach(({ el, sceneIndex, heightPx }) => {
     const c = layout[sceneIndex];
@@ -885,6 +901,7 @@ function refreshSceneScale() {
 
   syncBackgroundImageToViewport(iw);
   applySceneLayoutForViewportWidth(iw);
+  scene.classList.toggle("scene--is-mobile", isMobileViewportWidth(iw));
 
   const viewportKey = `${iw}x${ih}`;
   if (viewportKey !== lastViewportKey) {

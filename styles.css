@@ -107,6 +107,18 @@ body {
   font-variant-numeric: tabular-nums;
 }
 
+/* Mobile map (JS toggles .scene--is-mobile when viewport ≤ MOBILE_BACKGROUND_MAX_WIDTH_PX) */
+#spatial-scene.scene--is-mobile .donate-btn {
+  font-size: 14px;
+  padding: 0.5rem 1.15rem;
+  letter-spacing: 0.09em;
+}
+
+#spatial-scene.scene--is-mobile .bird-catcher {
+  bottom: calc(5.5rem - 30px - 140px);
+  font-size: 11px;
+}
+
 #spatial-viewport {
   position: absolute;
   inset: 0;
