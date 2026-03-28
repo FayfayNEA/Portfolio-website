@@ -5,7 +5,7 @@ const SCENE_Y_SHIFT_PERCENT = -54;
 const SCENE_SHIFT_UP_PX = 120;
 /** Extra leftward shift (px) so the map isn’t clipped on the right */
 const SCENE_SHIFT_LEFT_EXTRA_PX = 20;
-/** Uniform scale for all portfolio hotspots (width drives img size; height follows aspect ratio) */
+/** Extra scale for hotspot width on mobile only (≤ MOBILE_BACKGROUND_MAX_WIDTH_PX) */
 const ASSET_DISPLAY_SCALE = 1.3;
 
 /** Background art: desktop vs narrow viewports (matches #spatial-viewport width, e.g. Framer embed) */
@@ -210,7 +210,8 @@ function getBrandingTreeScreenRect() {
   if (!layout) return null;
   const sr = scene.getBoundingClientRect();
   const s = sr.width / DESIGN_WIDTH;
-  const wDesign = layout.width * ASSET_DISPLAY_SCALE;
+  const vw = viewport.clientWidth || window.innerWidth;
+  const wDesign = layout.width * (isMobileViewportWidth(vw) ? ASSET_DISPLAY_SCALE : 1);
   return {
     left: sr.left + layout.left * s,
     top: sr.top + layout.top * s,
@@ -675,8 +676,10 @@ function mountLeavesLayer() {
   refreshBackgroundPickBuffer();
 }
 
-function applyCoordinates(node, coords) {
-  const w = Math.round(coords.width * ASSET_DISPLAY_SCALE * 10) / 10;
+function applyCoordinates(node, coords, widthPx) {
+  const wv = widthPx ?? viewport?.clientWidth ?? window.innerWidth;
+  const mult = isMobileViewportWidth(wv) ? ASSET_DISPLAY_SCALE : 1;
+  const w = Math.round(coords.width * mult * 10) / 10;
   node.style.top = `${coords.top}px`;
   node.style.left = `${coords.left}px`;
   node.style.width = `${w}px`;
@@ -733,7 +736,7 @@ portfolioAssets.forEach((asset, index) => {
   const animationClass = animationClassByAsset[asset.name];
   if (animationClass && !topOnlySwayAssets.has(asset.name)) anchor.classList.add(animationClass);
   anchor.style.animationDelay = `-${(Math.random() * 5).toFixed(2)}s`;
-  applyCoordinates(anchor, sceneLayout[index]);
+  applyCoordinates(anchor, sceneLayout[index], viewport.clientWidth || window.innerWidth);
   if (asset.name === "Large_Tree") anchor.id = "branding-tree-anchor";
 
   if (topOnlySwayAssets.has(asset.name)) {
@@ -797,7 +800,7 @@ function applySceneLayoutForViewportWidth(widthPx) {
   const layout = effectiveSceneLayoutForWidth(widthPx);
   sceneAssetAnchors.forEach((a, i) => {
     const slot = layout[i];
-    if (slot) applyCoordinates(a, slot);
+    if (slot) applyCoordinates(a, slot, widthPx);
   });
   const portalSlot = layout[NETHER_SCENE_INDEX];
   if (portalSlot) {
