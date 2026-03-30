@@ -390,6 +390,17 @@ function startTooltipTypewriterOwned(owner, text, pos) {
 const BACKGROUND_FITHER_LABEL = "Fither";
 const BACKGROUND_FITHER_HREF = "https://www.failennaselta.com/dither";
 let backgroundHoverTooltipActive = false;
+function navigateTop(url) {
+  try {
+    if (window.top && window.top !== window) {
+      window.top.location.assign(url);
+      return;
+    }
+  } catch {
+    // Cross-origin frame access can throw; fall back to same-frame navigation.
+  }
+  window.location.assign(url);
+}
 function stopTooltipTypewriter() {
   if (tooltipTypewriterTimer !== null) {
     window.clearInterval(tooltipTypewriterTimer);
@@ -520,7 +531,7 @@ function enableBackgroundHoverTooltip() {
     if (!backgroundHoverTooltipActive) return;
     if (shouldIgnoreEventTarget(event.target)) return;
     if (!isOverWaterfallPortion(event)) return;
-    window.location.assign(BACKGROUND_FITHER_HREF);
+    navigateTop(BACKGROUND_FITHER_HREF);
   });
 }
 
