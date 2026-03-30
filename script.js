@@ -391,15 +391,14 @@ const BACKGROUND_FITHER_LABEL = "Fither";
 const BACKGROUND_FITHER_HREF = "https://www.failennaselta.com/dither";
 let backgroundHoverTooltipActive = false;
 function navigateTop(url) {
-  try {
-    if (window.top && window.top !== window) {
-      window.top.location.assign(url);
-      return;
-    }
-  } catch {
-    // Cross-origin frame access can throw; fall back to same-frame navigation.
-  }
-  window.location.assign(url);
+  // Match asset navigation semantics: <a target="_top">.
+  const a = document.createElement("a");
+  a.href = url;
+  a.target = "_top";
+  a.rel = "noopener";
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
 }
 function stopTooltipTypewriter() {
   if (tooltipTypewriterTimer !== null) {
