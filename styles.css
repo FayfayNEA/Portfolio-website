@@ -148,8 +148,9 @@ body {
   object-position: center;
   transform: translateY(130px) scale(1.1);
   transform-origin: center;
-  z-index: 1;
+  z-index: 0;
   user-select: none;
+  /* Allow background-only hover/click zones without blocking assets above it */
   pointer-events: auto;
   cursor: default;
   opacity: 0.75;
@@ -196,8 +197,10 @@ body {
   left: 50%;
   bottom: calc(100% + 14px);
   transform: translateX(-50%);
-  max-width: min(32rem, calc(100vw - 1.5rem));
-  padding: 0.5rem 0.9rem;
+  /* Prefer wider (flatter) bubbles, but never overflow viewport */
+  min-width: min(18rem, calc(100vw - 1.5rem));
+  max-width: min(40rem, calc(100vw - 1.5rem));
+  padding: 0.35rem 0.95rem;
   background: #ffffff;
   color: #0a0a0a;
   border: 2px solid #0a0a0a;
@@ -206,7 +209,7 @@ body {
     "Courier New", monospace;
   font-size: clamp(0.62rem, 1.5vmin, 0.78rem);
   font-weight: 600;
-  line-height: 1.35;
+  line-height: 1.2;
   text-align: center;
   letter-spacing: 0.03em;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12);

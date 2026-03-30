@@ -15,6 +15,9 @@ const MOBILE_BACKGROUND_MAX_WIDTH_PX = 809;
 /** Mobile: raise DONATE (larger `bottom` in design px); shift right in design px */
 const MOBILE_DONATE_BOTTOM_BOOST_PX = 100;
 const MOBILE_DONATE_LEFT_SHIFT_PX = 80;
+/** Nether portal glow/mask overlay needs a slightly different vertical nudge on mobile */
+const NETHER_PORTAL_OVERLAY_TOP_DESKTOP_PX = -64;
+const NETHER_PORTAL_OVERLAY_TOP_MOBILE_PX = -74;
 
 const portfolioAssets = [
   { name: "Jaguar", filename: "panther reflection.png", link: "about", hoverLabel: "About" },
@@ -60,7 +63,7 @@ const MOBILE_SCENE_ADJUSTMENTS = [
   { dTop: 20, dLeft: -5, dWidth: -14 }, // Radio — +20 down, −10 left
   { dTop: -14, dLeft: 88, dWidth: -5 }, // Orb
   { dTop: -100, dLeft:155,dWidth: -16 }, // Screen_Tablet — +30 down
-  { dTop: 48, dLeft: -84, dWidth: -12 }, // Nether_Portal — +30 down
+  { dTop: 38, dLeft: -84, dWidth: -12 }, // Nether_Portal — +30 down
   { dTop: 168, dLeft:-22, dWidth: -14 } // Money_Tree — +50 down, −50 left
 ];
 
@@ -380,6 +383,13 @@ tooltip.setAttribute("aria-hidden", "true");
 document.body.appendChild(tooltip);
 
 let tooltipTypewriterTimer = null;
+function startTooltipTypewriterOwned(owner, text, pos) {
+  tooltip.dataset.owner = owner;
+  startTooltipTypewriter(text, pos);
+}
+const BACKGROUND_FITHER_LABEL = "Fither";
+const BACKGROUND_FITHER_HREF = "https://www.failennaselta.com/dither";
+let backgroundHoverTooltipActive = false;
 function stopTooltipTypewriter() {
   if (tooltipTypewriterTimer !== null) {
     window.clearInterval(tooltipTypewriterTimer);
@@ -390,6 +400,7 @@ function dismissTooltip() {
   stopTooltipTypewriter();
   tooltip.classList.remove("visible");
   tooltip.replaceChildren();
+  delete tooltip.dataset.owner;
 }
 function setTooltipPosition(source) {
   const padding = 10;
@@ -420,6 +431,97 @@ function startTooltipTypewriter(text, pos) {
       caretEl.remove();
     }
   }, 52);
+}
+
+function enableBackgroundHoverTooltip() {
+  if (!viewport) return;
+
+  const shouldIgnoreEventTarget = (target) => {
+    if (!target) return false;
+    if (target.closest?.(".asset-link")) return true;
+    if (target.closest?.(".donate-btn")) return true;
+    if (target.closest?.("#bird-catcher")) return true;
+    return false;
+  };
+
+  const isOverWaterfallPortion = (event) => {
+    // Far-right region of the background (all viewport sizes)
+    if (!background) return false;
+    const r = background.getBoundingClientRect();
+    const vw = viewport?.clientWidth || window.innerWidth;
+    const mobilePadX = isMobileViewportWidth(vw) ? 50 : 0; // widen hotspot on mobile
+    const mobilePadY = isMobileViewportWidth(vw) ? 25 : 0; // taller (+50px total) on mobile
+    if (
+      event.clientX < r.left ||
+      event.clientX > r.right ||
+      event.clientY < r.top - mobilePadY ||
+      event.clientY > r.bottom + mobilePadY
+    ) {
+      return false;
+    }
+
+    const relX = (event.clientX - r.left) / Math.max(1, r.width);
+    const relY = (event.clientY - r.top) / Math.max(1, r.height);
+
+    // Tune these if you want the hotspot bigger/smaller.
+    // Far-right hotspot: rightmost 18% of the background rect.
+    void relY;
+    const baseThreshold = 0.82;
+    const threshold = baseThreshold - mobilePadX / Math.max(1, r.width);
+    return relX >= threshold;
+  };
+
+  const showAt = (event) => {
+    if (shouldIgnoreEventTarget(event.target)) return;
+    // Never override an asset tooltip (e.g. Orb "Buddy").
+    if (tooltip.dataset.owner === "asset") return;
+    if (!isOverWaterfallPortion(event)) return;
+    backgroundHoverTooltipActive = true;
+    startTooltipTypewriterOwned("background", BACKGROUND_FITHER_LABEL, event);
+  };
+
+  const moveAt = (event) => {
+    if (!backgroundHoverTooltipActive) return;
+    if (!tooltip.classList.contains("visible")) return;
+    if (!isOverWaterfallPortion(event)) {
+      hide();
+      return;
+    }
+    setTooltipPosition(event);
+  };
+
+  const hide = () => {
+    if (!backgroundHoverTooltipActive) return;
+    backgroundHoverTooltipActive = false;
+    if (tooltip.dataset.owner === "background") dismissTooltip();
+  };
+
+  viewport.addEventListener("pointermove", (event) => {
+    if (event.pointerType === "touch") return;
+    // If an asset currently owns the tooltip, the background hover must not compete.
+    if (tooltip.dataset.owner === "asset") return;
+    if (shouldIgnoreEventTarget(event.target)) {
+      // If we were showing the background tooltip, hide it once.
+      // Otherwise, don't interfere with asset tooltips (e.g. Orb "Buddy").
+      if (backgroundHoverTooltipActive) hide();
+      return;
+    }
+    if (!isOverWaterfallPortion(event)) {
+      hide();
+      return;
+    }
+    if (!backgroundHoverTooltipActive) showAt(event);
+    else moveAt(event);
+  });
+  viewport.addEventListener("pointerleave", hide);
+  viewport.addEventListener("scroll", hide, { passive: true });
+
+  viewport.addEventListener("click", (event) => {
+    if (!backgroundHoverTooltipActive) return;
+    if (shouldIgnoreEventTarget(event.target)) return;
+    if (!isOverWaterfallPortion(event)) return;
+    window.location.assign(BACKGROUND_FITHER_HREF);
+  });
 }
 
 /** 1024×580 cover raster — used to skip “paper” for the bird (looser than leaf mask) */
@@ -715,6 +817,7 @@ function attachStaticPulseOverlay(anchor, overlayFilename, topOffsetPx = 0, left
   }
   pulseOverlay.src = assetUrl(overlayFilename);
   anchor.appendChild(pulseOverlay);
+  return pulseOverlay;
 }
 
 const RADIO_NOTE_SYMBOLS = ["♪", "♫", "♪", "♫"];
@@ -738,11 +841,12 @@ function addRadioMusicNotes(anchor) {
 }
 
 const sceneAssetAnchors = [];
+let netherPortalOverlayEl = null;
 
 portfolioAssets.forEach((asset, index) => {
   const anchor = document.createElement("a");
   anchor.className = "asset-link";
-  anchor.href = `https://failennaselta.com/${asset.link}`;
+  anchor.href = asset.href ?? `https://failennaselta.com/${asset.link}`;
   anchor.target = "_top";
   anchor.setAttribute("aria-label", `${asset.name} — ${asset.hoverLabel ?? asset.link}`);
   anchor.style.zIndex =
@@ -777,10 +881,39 @@ portfolioAssets.forEach((asset, index) => {
     image.alt = asset.name.replaceAll("_", " ");
     anchor.appendChild(image);
 
+    if (asset.hoverFilename) {
+      const baseSrc = image.src;
+      const hoverSrc = assetUrl(asset.hoverFilename);
+      const showHover = () => {
+        image.src = hoverSrc;
+      };
+      const showBase = () => {
+        image.src = baseSrc;
+      };
+      anchor.addEventListener("mouseenter", showHover);
+      anchor.addEventListener("mouseleave", showBase);
+      anchor.addEventListener("focus", showHover);
+      anchor.addEventListener("blur", showBase);
+    }
+
     if (asset.name === "Nether_Portal") {
       anchor.id = "nether-portal-anchor";
       anchor.style.opacity = "0.9";
-      attachStaticPulseOverlay(anchor, NETHER_PORTAL_OVERLAY_FILENAME, -64, 12, .26);
+      netherPortalOverlayEl = attachStaticPulseOverlay(
+        anchor,
+        NETHER_PORTAL_OVERLAY_FILENAME,
+        NETHER_PORTAL_OVERLAY_TOP_DESKTOP_PX,
+        12,
+        .26
+      );
+      const vw = viewport.clientWidth || window.innerWidth;
+      if (netherPortalOverlayEl) {
+        netherPortalOverlayEl.style.top = `${
+          isMobileViewportWidth(vw)
+            ? NETHER_PORTAL_OVERLAY_TOP_MOBILE_PX
+            : NETHER_PORTAL_OVERLAY_TOP_DESKTOP_PX
+        }px`;
+      }
     } else if (asset.name === "Screen_Tablet") {
       attachStaticPulseOverlay(anchor, SCREEN_TABLET_OVERLAY_FILENAME, -8, 2, .3);
     }
@@ -797,14 +930,14 @@ portfolioAssets.forEach((asset, index) => {
   }
 
   const hoverTitle = asset.hoverLabel ?? asset.link;
-  anchor.addEventListener("mouseenter", (event) => startTooltipTypewriter(hoverTitle, event));
+  anchor.addEventListener("mouseenter", (event) => startTooltipTypewriterOwned("asset", hoverTitle, event));
   anchor.addEventListener("mousemove", (event) => {
     if (tooltip.classList.contains("visible")) setTooltipPosition(event);
   });
   anchor.addEventListener("mouseleave", dismissTooltip);
   anchor.addEventListener("focus", () => {
     const rect = anchor.getBoundingClientRect();
-    startTooltipTypewriter(hoverTitle, { clientX: rect.left + rect.width / 2, clientY: rect.top });
+    startTooltipTypewriterOwned("asset", hoverTitle, { clientX: rect.left + rect.width / 2, clientY: rect.top });
   });
   anchor.addEventListener("blur", dismissTooltip);
 
@@ -902,6 +1035,13 @@ function refreshSceneScale() {
   syncBackgroundImageToViewport(iw);
   applySceneLayoutForViewportWidth(iw);
   scene.classList.toggle("scene--is-mobile", isMobileViewportWidth(iw));
+  if (netherPortalOverlayEl) {
+    netherPortalOverlayEl.style.top = `${
+      isMobileViewportWidth(iw)
+        ? NETHER_PORTAL_OVERLAY_TOP_MOBILE_PX
+        : NETHER_PORTAL_OVERLAY_TOP_DESKTOP_PX
+    }px`;
+  }
 
   const viewportKey = `${iw}x${ih}`;
   if (viewportKey !== lastViewportKey) {
@@ -998,6 +1138,7 @@ function initResponsiveMap() {
 }
 // Run immediately, but let the observer handle the live server delays
 initResponsiveMap();
+enableBackgroundHoverTooltip();
 window.addEventListener("load", () => requestAnimationFrame(refreshSceneScale), { once: true });
 window.addEventListener("pageshow", () => requestAnimationFrame(refreshSceneScale));
 
