@@ -17,10 +17,9 @@ body {
   left: 0;
 }
 
-/* DONATE — in scene coordinates; scales with the map (Nether portal slot index 7) */
+/* DONATE — fixed upper-left in design space; position set in script */
 .donate-btn {
   position: absolute;
-  /* Right edge 20px left of portal; bottom edge 80px above portal top — set in script */
   z-index: 32;
   display: inline-block;
   padding: 0.35rem 0.85rem;
@@ -36,7 +35,7 @@ body {
   text-decoration: none;
   line-height: 1.2;
   box-shadow: 0 1px 0 rgba(0, 0, 0, 0.06);
-  transform: translateX(-100%);
+  transform: none;
   transition:
     background 0.15s ease,
     color 0.15s ease,
@@ -52,7 +51,7 @@ body {
 }
 
 .donate-btn:active {
-  transform: translateX(-100%) translateY(1px);
+  transform: translateY(1px);
 }
 
 .donate-btn:focus-visible {
@@ -329,6 +328,12 @@ body {
   display: block;
   z-index: 2;
   transform-origin: center;
+}
+
+/* Radio: ~30° counterclockwise (tilt to the left) */
+.asset-link--radio-tilt .asset-image {
+  transform: rotate(-5deg);
+  transform-origin: center center;
 }
 
 .anim-sway {

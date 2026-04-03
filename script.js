@@ -12,12 +12,19 @@ const ASSET_DISPLAY_SCALE = 1.3;
 const BACKGROUND_DESKTOP_FILE = "background2.png";
 const BACKGROUND_MOBILE_FILE = "waterfall.png";
 const MOBILE_BACKGROUND_MAX_WIDTH_PX = 809;
-/** Mobile: raise DONATE (larger `bottom` in design px); shift right in design px */
-const MOBILE_DONATE_BOTTOM_BOOST_PX = 100;
-const MOBILE_DONATE_LEFT_SHIFT_PX = 80;
-/** Nether portal glow/mask overlay needs a slightly different vertical nudge on mobile */
-const NETHER_PORTAL_OVERLAY_TOP_DESKTOP_PX = -64;
-const NETHER_PORTAL_OVERLAY_TOP_MOBILE_PX = -74;
+/** DONATE fixed upper-left in design space (scales with scene) */
+const DONATE_SCENE_LEFT_PX = 130;
+const DONATE_SCENE_TOP_PX = 166;
+const MOBILE_DONATE_LEFT_NUDGE_PX = 6;
+const MOBILE_DONATE_TOP_NUDGE_PX = 8;
+/** Nether portal glow/mask overlay — separate nudges from portal hotspot */
+const NETHER_PORTAL_OVERLAY_TOP_DESKTOP_PX = -78;
+const NETHER_PORTAL_OVERLAY_TOP_MOBILE_PX = -84;
+const NETHER_PORTAL_OVERLAY_LEFT_DESKTOP_PX = 14;
+/** Mobile only: mask 3px right of desktop overlay offset */
+const NETHER_PORTAL_OVERLAY_LEFT_MOBILE_PX = NETHER_PORTAL_OVERLAY_LEFT_DESKTOP_PX + 3;
+
+const WORK_PAGE_HREF = "https://www.failennaselta.com/work";
 
 const portfolioAssets = [
   { name: "Jaguar", filename: "panther reflection.png", link: "about", hoverLabel: "About" },
@@ -25,10 +32,21 @@ const portfolioAssets = [
   {
     name: "Concrete_Block",
     filename: "colored block.png",
-    link: "architecture",
-    hoverLabel: "Architecture"
+    href: WORK_PAGE_HREF,
+    hoverLabel: "Work"
   },
-  { name: "Large_Tree", filename: "bush tree.png", link: "branding", hoverLabel: "Branding" },
+  {
+    name: "Large_Tree",
+    filename: "bush tree.png",
+    href: WORK_PAGE_HREF,
+    hoverLabel: "Work"
+  },
+  {
+    name: "Computer2",
+    filename: "computer2.png",
+    href: WORK_PAGE_HREF,
+    hoverLabel: "Work"
+  },
   { name: "Radio", filename: "radio color.png", link: "contact", hoverLabel: "Contact" },
   { name: "Orb", filename: "orb.png", link: "buddy", hoverLabel: "Buddy" },
   { name: "Screen_Tablet", filename: "glowing tablet.png", link: "eidolon", hoverLabel: "Eidolon" },
@@ -41,16 +59,17 @@ const portfolioAssets = [
   { name: "Money_Tree", filename: "colored money tree.png", link: "etrade", hoverLabel: "E-Trade" }
 ];
 
-// Jaguar, Rocks_Foliage, Concrete_Block, Large_Tree, Radio, Orb, Screen_Tablet, Nether_Portal, Money_Tree
+// Jaguar, Rocks_Foliage, Concrete_Block, Large_Tree, Computer2, Radio, Orb, Screen_Tablet, Nether_Portal, Money_Tree
 const sceneLayout = [
   { top: 290, left: 537, width: 132 },
   { top: 389, left: 666, width: 80 },
   { top: 256, left: 653, width: 109 },
   { top: 126, left: 648, width: 230 },
-  { top: 434, left: 56, width: 170 },
-  { top: 367, left: 242, width: 63 },
-  { top: 588, left: 370, width: 180 },
-  { top: 233, left: 230, width: 138 },
+  { top: 265, left: 718, width: 70 },
+  { top: 290, left: 220, width: 138 },
+  { top: 227, left: 242, width: 63 },
+  { top: 508, left: 540, width: 180 },
+  { top: 404, left: 56, width: 170 },
   { top: 344, left: 349, width: 150 }
 ];
 
@@ -60,27 +79,27 @@ const MOBILE_SCENE_ADJUSTMENTS = [
   { dTop:20, dLeft: 130, dWidth: -8 }, // Rocks_Foliage — +30 down, +30 right
   { dTop: 74, dLeft: -160, dWidth: -10 }, // Concrete_Block — +30 down, −20 left
   { dTop: 36, dLeft: -170, dWidth: -20 }, // Large_Tree — +30 down, −20 left
-  { dTop: 20, dLeft: -5, dWidth: -14 }, // Radio — +20 down, −10 left
+  { dTop: 75, dLeft: -145, dWidth: -8}, // Computer2 — with tree/concrete on mobile
+  { dTop: 50, dLeft: -5, dWidth: -14 }, // Radio — +20 down, −10 left
   { dTop: -14, dLeft: 88, dWidth: -5 }, // Orb
-  { dTop: -100, dLeft:155,dWidth: -16 }, // Screen_Tablet — +30 down
-  { dTop: 38, dLeft: -84, dWidth: -12 }, // Nether_Portal — +30 down
-  { dTop: 168, dLeft:-22, dWidth: -14 } // Money_Tree — +50 down, −50 left
+  { dTop: -10, dLeft:-10,dWidth: -16 }, // Screen_Tablet — +30 down
+  { dTop: 8, dLeft: 0, dWidth: -30}, // Nether_Portal
+  { dTop: 168, dLeft:-22, dWidth: -29 } // Money_Tree — +50 down, −50 left
 ];
 
 function isMobileViewportWidth(widthPx) {
   return widthPx <= MOBILE_BACKGROUND_MAX_WIDTH_PX;
 }
 
-function donateBottomPx(buttonBottomY, widthPx) {
-  let b = DESIGN_HEIGHT - buttonBottomY;
-  if (isMobileViewportWidth(widthPx)) b += MOBILE_DONATE_BOTTOM_BOOST_PX;
-  return b;
-}
-
-function donateLeftPx(rightEdgeX, widthPx) {
-  let x = rightEdgeX;
-  if (isMobileViewportWidth(widthPx)) x += MOBILE_DONATE_LEFT_SHIFT_PX;
-  return x;
+function applyDonatePosition(widthPx) {
+  const w =
+    Number.isFinite(widthPx) && widthPx > 0
+      ? widthPx
+      : viewport?.clientWidth || window.innerWidth;
+  const m = isMobileViewportWidth(w);
+  donateBtn.style.left = `${DONATE_SCENE_LEFT_PX + (m ? MOBILE_DONATE_LEFT_NUDGE_PX : 0)}px`;
+  donateBtn.style.top = `${DONATE_SCENE_TOP_PX + (m ? MOBILE_DONATE_TOP_NUDGE_PX : 0)}px`;
+  donateBtn.style.bottom = "auto";
 }
 
 function effectiveSceneLayoutForWidth(widthPx) {
@@ -96,8 +115,8 @@ function effectiveSceneLayoutForWidth(widthPx) {
   });
 }
 
-// Ensure overlapping hotspots click correctly (Concrete over Branding tree).
-const layerByAsset = { Concrete_Block: 6, Large_Tree: 3, Jaguar: 5 };
+// Ensure overlapping hotspots click correctly (Computer2 over concrete/tree).
+const layerByAsset = { Concrete_Block: 6, Large_Tree: 3, Jaguar: 5, Computer2: 8 };
 const animationClassByAsset = {
   Large_Tree: "anim-sway",
   Money_Tree: "anim-sway",
@@ -122,7 +141,7 @@ const LEAF_SPIRAL_CLASSES = [
 const LEAF_ZONE_DEFINITIONS = [
   { sceneIndex: 1, heightPx: 92 },
   { sceneIndex: 3, heightPx: 268 },
-  { sceneIndex: 8, heightPx: 128 }
+  { sceneIndex: 9, heightPx: 128 }
 ];
 const LEAF_COUNT_PER_ZONE = [4, 5, 4];
 
@@ -173,9 +192,48 @@ window.addEventListener("unhandledrejection", (e) => {
 });
 
 const BIRD_CATCH_STORAGE_KEY = "birdCatchesEver";
+/** Shared counter (all visitors) — CountAPI namespace/key; no auth, works on static hosting */
+const TUCAN_GLOBAL_COUNT_NS = "failenn-portfolio";
+const TUCAN_GLOBAL_COUNT_KEY = "tucan-global-catches";
+
 /** Slower = longer linear move (seconds); end timer should run just after motion finishes */
 const BIRD_FLIGHT_DURATION_SEC = 8;
 const BIRD_FLIGHT_END_MS = Math.round(BIRD_FLIGHT_DURATION_SEC * 1000) + 180;
+
+function globalTucanCountUrl(action) {
+  const ns = encodeURIComponent(TUCAN_GLOBAL_COUNT_NS);
+  const key = encodeURIComponent(TUCAN_GLOBAL_COUNT_KEY);
+  return `https://api.countapi.xyz/${action}/${ns}/${key}`;
+}
+
+function parseCountApiValue(data) {
+  const v = data?.value;
+  const n = typeof v === "number" ? v : parseInt(String(v ?? ""), 10);
+  return Number.isFinite(n) && n >= 0 ? n : null;
+}
+
+async function fetchGlobalTucanCount() {
+  try {
+    const r = await fetch(globalTucanCountUrl("get"), { cache: "no-store" });
+    if (r.status === 404) return 0;
+    if (!r.ok) return null;
+    const j = await r.json();
+    return parseCountApiValue(j);
+  } catch {
+    return null;
+  }
+}
+
+async function hitGlobalTucanCount() {
+  try {
+    const r = await fetch(globalTucanCountUrl("hit"), { cache: "no-store" });
+    if (!r.ok) return null;
+    const j = await r.json();
+    return parseCountApiValue(j);
+  } catch {
+    return null;
+  }
+}
 
 function getBirdCatchesEver() {
   try {
@@ -195,6 +253,20 @@ function incrementBirdCatchesEver() {
     /* ignore quota / private mode */
   }
   return next;
+}
+
+function setBirdCatchCountDisplayed(n) {
+  const countEl = document.getElementById("bird-catch-count");
+  if (countEl) countEl.textContent = String(n);
+}
+
+async function refreshGlobalTucanCountDisplay() {
+  const n = await fetchGlobalTucanCount();
+  if (n !== null) {
+    setBirdCatchCountDisplayed(n);
+    return;
+  }
+  setBirdCatchCountDisplayed(getBirdCatchesEver());
 }
 
 function birdAssetUrl(filename) {
@@ -292,9 +364,14 @@ function catchBird(event) {
   hoverBirdRoot.style.top = `${r.top}px`;
   hoverBirdRoot.classList.remove("is-catchable");
 
-  const total = incrementBirdCatchesEver();
-  const countEl = document.getElementById("bird-catch-count");
-  if (countEl) countEl.textContent = String(total);
+  void (async () => {
+    const fromApi = await hitGlobalTucanCount();
+    if (fromApi !== null) {
+      setBirdCatchCountDisplayed(fromApi);
+    } else {
+      setBirdCatchCountDisplayed(incrementBirdCatchesEver());
+    }
+  })();
 
   birdSpeechBubble.classList.add("is-visible");
   birdSpeechBubble.setAttribute("aria-hidden", "false");
@@ -577,9 +654,6 @@ if (background.complete && background.naturalWidth > 0) {
 }
 
 const NETHER_SCENE_INDEX = portfolioAssets.findIndex((a) => a.name === "Nether_Portal");
-const netherSlot = sceneLayout[NETHER_SCENE_INDEX];
-const DONATE_GAP_LEFT_OF_PORTAL = 20;
-const DONATE_GAP_ABOVE_PORTAL_TOP = 80;
 
 const donateBtn = document.createElement("a");
 donateBtn.id = "donate-btn";
@@ -587,27 +661,22 @@ donateBtn.className = "donate-btn";
 donateBtn.href = "https://www.junglekeepers.org/cameras/remote-lake";
 donateBtn.target = "_top";
 donateBtn.textContent = "DONATE";
-{
-  const rightEdgeX = netherSlot.left - DONATE_GAP_LEFT_OF_PORTAL;
-  const buttonBottomY = netherSlot.top - DONATE_GAP_ABOVE_PORTAL_TOP;
-  const vw = viewport.clientWidth || window.innerWidth;
-  donateBtn.style.left = `${donateLeftPx(rightEdgeX, vw)}px`;
-  donateBtn.style.bottom = `${donateBottomPx(buttonBottomY, vw)}px`;
-}
+applyDonatePosition(viewport.clientWidth || window.innerWidth);
 scene.appendChild(donateBtn);
 
 const birdCatchPanel = document.createElement("div");
 birdCatchPanel.id = "bird-catcher";
 birdCatchPanel.className = "bird-catcher";
 birdCatchPanel.setAttribute("aria-live", "polite");
-birdCatchPanel.setAttribute("aria-label", "Catch the bird — total catches ever");
+birdCatchPanel.setAttribute("aria-label", "Catch the bird — total catches worldwide");
 const birdCatchLine = document.createElement("p");
 birdCatchLine.className = "bird-catcher__line";
 birdCatchLine.appendChild(document.createTextNode("how many people caught the tucan?: "));
 const birdCatchCountEl = document.createElement("span");
 birdCatchCountEl.id = "bird-catch-count";
-birdCatchCountEl.textContent = String(getBirdCatchesEver());
+birdCatchCountEl.textContent = "…";
 birdCatchLine.appendChild(birdCatchCountEl);
+void refreshGlobalTucanCountDisplay();
 birdCatchPanel.appendChild(birdCatchLine);
 scene.appendChild(birdCatchPanel);
 
@@ -853,6 +922,17 @@ function addRadioMusicNotes(anchor) {
 const sceneAssetAnchors = [];
 let netherPortalOverlayEl = null;
 
+function syncNetherPortalOverlayPosition(widthPx) {
+  if (!netherPortalOverlayEl) return;
+  const w =
+    Number.isFinite(widthPx) && widthPx > 0
+      ? widthPx
+      : viewport?.clientWidth || window.innerWidth;
+  const m = isMobileViewportWidth(w);
+  netherPortalOverlayEl.style.top = `${m ? NETHER_PORTAL_OVERLAY_TOP_MOBILE_PX : NETHER_PORTAL_OVERLAY_TOP_DESKTOP_PX}px`;
+  netherPortalOverlayEl.style.left = `${m ? NETHER_PORTAL_OVERLAY_LEFT_MOBILE_PX : NETHER_PORTAL_OVERLAY_LEFT_DESKTOP_PX}px`;
+}
+
 portfolioAssets.forEach((asset, index) => {
   const anchor = document.createElement("a");
   anchor.className = "asset-link";
@@ -868,6 +948,7 @@ portfolioAssets.forEach((asset, index) => {
   anchor.style.animationDelay = `-${(Math.random() * 5).toFixed(2)}s`;
   applyCoordinates(anchor, sceneLayout[index], viewport.clientWidth || window.innerWidth);
   if (asset.name === "Large_Tree") anchor.id = "branding-tree-anchor";
+  if (asset.name === "Radio") anchor.classList.add("asset-link--radio-tilt");
 
   if (topOnlySwayAssets.has(asset.name)) {
     anchor.classList.add("has-top-only-sway");
@@ -913,17 +994,10 @@ portfolioAssets.forEach((asset, index) => {
         anchor,
         NETHER_PORTAL_OVERLAY_FILENAME,
         NETHER_PORTAL_OVERLAY_TOP_DESKTOP_PX,
-        12,
+        NETHER_PORTAL_OVERLAY_LEFT_DESKTOP_PX,
         .26
       );
-      const vw = viewport.clientWidth || window.innerWidth;
-      if (netherPortalOverlayEl) {
-        netherPortalOverlayEl.style.top = `${
-          isMobileViewportWidth(vw)
-            ? NETHER_PORTAL_OVERLAY_TOP_MOBILE_PX
-            : NETHER_PORTAL_OVERLAY_TOP_DESKTOP_PX
-        }px`;
-      }
+      syncNetherPortalOverlayPosition(viewport.clientWidth || window.innerWidth);
     } else if (asset.name === "Screen_Tablet") {
       attachStaticPulseOverlay(anchor, SCREEN_TABLET_OVERLAY_FILENAME, -8, 2, .3);
     }
@@ -961,13 +1035,7 @@ function applySceneLayoutForViewportWidth(widthPx) {
     const slot = layout[i];
     if (slot) applyCoordinates(a, slot, widthPx);
   });
-  const portalSlot = layout[NETHER_SCENE_INDEX];
-  if (portalSlot) {
-    const rightEdgeX = portalSlot.left - DONATE_GAP_LEFT_OF_PORTAL;
-    const buttonBottomY = portalSlot.top - DONATE_GAP_ABOVE_PORTAL_TOP;
-    donateBtn.style.left = `${donateLeftPx(rightEdgeX, widthPx)}px`;
-    donateBtn.style.bottom = `${donateBottomPx(buttonBottomY, widthPx)}px`;
-  }
+  applyDonatePosition(widthPx);
   leafZoneMeta.forEach(({ el, sceneIndex, heightPx }) => {
     const c = layout[sceneIndex];
     if (!c || !el) return;
@@ -1045,13 +1113,7 @@ function refreshSceneScale() {
   syncBackgroundImageToViewport(iw);
   applySceneLayoutForViewportWidth(iw);
   scene.classList.toggle("scene--is-mobile", isMobileViewportWidth(iw));
-  if (netherPortalOverlayEl) {
-    netherPortalOverlayEl.style.top = `${
-      isMobileViewportWidth(iw)
-        ? NETHER_PORTAL_OVERLAY_TOP_MOBILE_PX
-        : NETHER_PORTAL_OVERLAY_TOP_DESKTOP_PX
-    }px`;
-  }
+  syncNetherPortalOverlayPosition(iw);
 
   const viewportKey = `${iw}x${ih}`;
   if (viewportKey !== lastViewportKey) {
