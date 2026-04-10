@@ -465,7 +465,7 @@ function startTooltipTypewriterOwned(owner, text, pos) {
   startTooltipTypewriter(text, pos);
 }
 const BACKGROUND_FITHER_LABEL = "Fither";
-const BACKGROUND_FITHER_HREF = "https://www.failennaselta.com/dither";
+const BACKGROUND_FITHER_HREF = "https://www.failennaselta.com/fither";
 let backgroundHoverTooltipActive = false;
 function navigateTop(url) {
   // Match asset navigation semantics: <a target="_top">.
